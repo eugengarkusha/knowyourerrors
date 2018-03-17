@@ -1,6 +1,6 @@
 package ops
 
-import coproduct.ops.{Align, AndThen, LiftCp, MatchSyntax}
+import coproduct.ops.{AndThen, LiftCp, MatchSyntax}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -9,7 +9,7 @@ import EitherOps.FutureEitherMT
 import coproduct.Coproduct._
 import coproduct._
 import shapeless.{<:!<,=:!=, HList, CNil, Coproduct}
-import shapeless.ops.coproduct.Inject
+import shapeless.ops.coproduct.{Inject, Basis}
 import misc.boolOps._
 import coproduct.ops._
 import cats.syntax.either._
@@ -19,12 +19,18 @@ import errors._
 
 object ops {
 
-  //  Raw example of what can be done:
+  trait Align[Err, Super <: Coproduct] extends (Err => Super)
+  object Align{
+    implicit def x[Err, Lerr<: Coproduct, Super<: Coproduct](implicit lcp: LiftCp.Aux[Err, Lerr], e: Basis[Super, Lerr]):Align[Err, Super]  =
+      v => e.inverse(Right(lcp(v)))
+  }
+
 
   //TODO: put executionContext to methods signatures and extend AnyVal
   implicit class FutureEitherOps[Err, Result](t: Future[Either[Err, Result]])(implicit ec: ExecutionContext) {
+
     def mt: FutureEitherMT[Err, Result] = FutureEitherMT(t)
-    def align[E](implicit c: AndThen.Aux[Err, LiftCp.Aux, Align, E]): FutureEitherMT[E, Result] = mt.leftMap(err => c.b(c.a(err)))
+    def align[E <: Coproduct](implicit c: Align[Err, E]): FutureEitherMT[E, Result] = mt.leftMap(c)
     def partiallyHandle[L, R <: Coproduct, O, RR >: Result](f: Err => MatchSyntax.Case[L +: R, Result])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
     ): FutureEitherMT[O, RR] = {
@@ -38,7 +44,7 @@ object ops {
 
   //TODO: put executionContext to methods signatures and extend AnyVal!!!
   implicit class FutureEitherMTOps[Err, Result](t: FutureEitherMT[Err, Result])(implicit ec: ExecutionContext) {
-    def align[E](implicit c: AndThen.Aux[Err, LiftCp.Aux, Align, E]): FutureEitherMT[E, Result] = t.leftMap(err => c.b(c.a(err)))
+    def align[E <: Coproduct](implicit c: Align[Err, E]): FutureEitherMT[E, Result] = t.leftMap(c)
     def partiallyHandle[L, R <: Coproduct, O, RR >: Result](f: Err => MatchSyntax.Case[L +: R, RR])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
     ): FutureEitherMT[O, RR] = {
@@ -48,13 +54,13 @@ object ops {
 
     def adapt[F <: HList, O](f: => PolyFunc[F])(implicit m: UniformPolyMap.Aux[Err, F, O]): FutureEitherMT[O, Result] = t.leftMap(f(_))
 
-    def ensureCP[E, LL, EE](err: Result => E)(cond: Result => Boolean)(
+    def ensureCP[E, LL<: Coproduct, EE](err: Result => E)(cond: Result => Boolean)(
       implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]
     ): FutureEitherMT[EE, Result] = {
       t.copy(t.v.map(_.ensureCP[E, LL, EE](err)(cond)(liftCp, add)))
     }
 
-    def ensureCP[E, LL, EE](err: => E)(cond: Result => Boolean)(
+    def ensureCP[E, LL<: Coproduct, EE](err: => E)(cond: Result => Boolean)(
       implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]
     ): FutureEitherMT[EE, Result] = {
       ensureCP[E, LL, EE]((_: Result) => err)(cond)(liftCp, add)
@@ -77,11 +83,11 @@ object ops {
 
     def futMt(implicit ec: ExecutionContext): FutureEitherMT[Err, Res] = FutureEitherMT(Future.successful(e))
 
-    def futMtA[E](implicit c: AndThen.Aux[Err, LiftCp.Aux, Align, E], ec: ExecutionContext): FutureEitherMT[E, Res] = {
-      FutureEitherMT(Future.successful(e.left.map(err => c.b(c.a(err)))))
+    def futMtA[E<: Coproduct](implicit c: Align[Err, E], ec: ExecutionContext): FutureEitherMT[E, Res] = {
+      FutureEitherMT(Future.successful(e.left.map(c)))
     }
 
-    def align[E](implicit c: AndThen.Aux[Err, LiftCp.Aux, Align, E]): Either[E, Res] = e.left.map(err => c.b(c.a(err)))
+    def align[E<: Coproduct](implicit c: Align[Err, E]): Either[E, Res] = e.left.map(c)
 
     def partiallyHandle[L, R <: Coproduct, O, RR >: Res](f: Err => MatchSyntax.Case[L +: R, RR])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
@@ -104,7 +110,7 @@ object ops {
       )
     }
 
-    def joinCP[Err2, Res2, LC1, LC2, MO](
+    def joinCP[Err2, Res2, LC1<: Coproduct, LC2<: Coproduct, MO](
       implicit ev: Res <:< Either[Err2, Res2], liftCp: LiftCp.Aux[Err, LC1], liftCp2: LiftCp.Aux[Err2, LC2], m: Merge.Aux[LC1, LC2, MO]
     ): Either[MO, Res2] = {
       e.fold(
@@ -113,11 +119,11 @@ object ops {
       )
     }
 
-    def ensureCP[E, LL, EE](ll: => E)(cond: Res => Boolean)(implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]): Either[EE, Res] = {
+    def ensureCP[E, LL<: Coproduct, EE](ll: => E)(cond: Res => Boolean)(implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]): Either[EE, Res] = {
       ensureCP[E, LL, EE]((_: Res) => ll)(cond)(liftCp, add)
     }
 
-    def ensureCP[E, LL, EE](ll: Res => E)(cond: Res => Boolean)(implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]): Either[EE, Res] = {
+    def ensureCP[E, LL<: Coproduct, EE](ll: Res => E)(cond: Res => Boolean)(implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]): Either[EE, Res] = {
       e match {
         case Left(_err) => Left(add.extend(liftCp(_err)))
         case x@Right(res) => if (cond(res)) x.asInstanceOf[Either[EE, Res]] else Left(add(ll(res)))
@@ -125,7 +131,7 @@ object ops {
     }
 
 
-    def hasError[E](implicit extract: ExtractInvariant[Err, E]): Boolean = e.isLeft && extract(e.left.get).isRight
+    def hasError[E](implicit extract: Extract[Err, E, Invariant]): Boolean = e.isLeft && extract(e.left.get).isRight
 
   }
 

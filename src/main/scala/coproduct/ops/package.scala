@@ -3,7 +3,9 @@ package coproduct
 import coproduct.ops.MatchSyntax.{Case, ExtractSyntax}
 import coproduct.Coproduct._
 import misc.boolOps._
-import shapeless.{Coproduct, CNil}
+import shapeless.ops.coproduct.{Basis, Selector}
+import shapeless.{CNil, Coproduct}
+import shapeless.ops.coproduct.Remove
 
 package object ops {
 
@@ -13,9 +15,9 @@ package object ops {
 
   trait If[T] {
     def map[V](f: T => V): If[V]
-    def _else[X, T1, X1, O](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O]
-    def elseIf[X, T1, X1, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O]
-    def _else[X, T1, X1, O](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O
+    def _else[X, T1<: Coproduct, X1<: Coproduct, O](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O]
+    def elseIf[X, T1<: Coproduct, X1<: Coproduct, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O]
+    def _else[X, T1<: Coproduct, X1<: Coproduct, O](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O
 
     def opt: Option[T]
     def left[R](r: => R): Either[T, R]
@@ -24,13 +26,13 @@ package object ops {
 
   class IfTrue[T](v: => T) extends If[T] {
     override def map[V](f: T => V): If[V] = new IfTrue[V](f(v))
-    override def _else[X, T1, X1, O](not_used: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](not_used: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
       map(t => m.append(lt(t)))
     }
-    override def elseIf[X, T1, X1, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
+    override def elseIf[X, T1<: Coproduct, X1<: Coproduct, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
       _else("this should be never invoked".asInstanceOf[If[X]])
     }
-    override def _else[X, T1, X1, O](not_used: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O = {
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](not_used: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O = {
       m.append(lt(v))
     }
     def opt: Option[T] = Some(v)
@@ -40,13 +42,13 @@ package object ops {
 
   class IfFalse[T] extends If[T] {
     override def map[V](f: T => V): If[V] = this.asInstanceOf[If[V]]
-    override def _else[X, T1, X1, O](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
       _if.map(x => m.prepend(lx(x)))
     }
-    override def elseIf[X, T1, X1, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
+    override def elseIf[X, T1<: Coproduct, X1<: Coproduct, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
       If(cond1)(m.prepend(lx(v1)))
     }
-    override def _else[X, T1, X1, O](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O = {
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O = {
       m.prepend(lx(other))
     }
     def opt: Option[T] = None
@@ -90,25 +92,24 @@ package object ops {
 
     type C = L +: R
 
-    def align[Dst](implicit align: Align[C, Dst]): Dst = align(or)
+    // TODO: Use shapeless.syntax
+    def align[Super <: Coproduct](implicit basis: Basis[Super, C]): Super = basis.inverse(Right(or))
 
-    def flatten[O](implicit fl: Flatten.Aux[C, O]): O = fl(or)
+    def flatten[O<: Coproduct](implicit fl: Flatten.Aux[C, O]): O = fl(or)
 
     //extract the value from this coproduct as the least uper bound of all types
-    def lub[O](implicit get: Get.Aux[C, O]): O = {
-      get(or).getOrElse(throw new Exception("Empty coproduct found in non-empty coproduct ops. This may be caused by type casting."))
-    }
+    def lub[O](implicit get: Selector[C, O]): O = get(or).ensuring(_.isDefined).get
 
-    def extract[T](implicit extract: ExtractInvariant[C, T]): Either[extract.Out, T] = extract(or)
+    def extract[T](implicit remove: Remove[C, T]): Either[remove.Rest, T] = remove(or).swap
 
-    def extractAll[V](implicit extract: ExtractCovariant[C, V, MatchRequired]): Either[extract.Out, V] = extract(or)
+    def extractAll[V](implicit extract: ExtractCovariant[C, V]): Either[extract.Rest, V] = extract(or)
 
-    def contains[T](implicit extract: ExtractInvariant[C, T]): Boolean = extract(or).isRight
+    def contains[T](implicit remove: Remove[C, T]): Boolean = remove(or).isLeft
 
-    def remove[T](implicit extract: ExtractInvariant[C, T]): Option[extract.Out] = extract(or).fold(Some(_), _ => None)
+    def remove[T](implicit remove: Remove[C, T]): Option[remove.Rest] = remove(or).fold(_ => None, Some(_))
 
     class MapSyntax[S, V <: VarianceType] {
-      def apply[D](f: S => D)(implicit mapper: Mapper[C, S, D, V]): mapper.Out = mapper(or, f)
+      def apply[D](f: S => D)(implicit mapper: MapOne[C, S, D, V]): mapper.Out = mapper(or, f)
     }
 
     //TODO: create an implementation of PolyFcuntion for and a corresponding mapAll method
@@ -134,7 +135,7 @@ package object ops {
 
     class CaseSyntax[T] {
       def apply[Res, Extd <: Coproduct, O](f: T => Res)
-        (implicit e: ExtractInvariant.Aux[C, T, Extd], _if: IF.Aux[Extd =:= CNil, Res, Case[Extd, Res], O]): O = {
+        (implicit e: Extract.Aux[C, T, Extd, Invariant], _if: IF.Aux[Extd =:= CNil, Res, Case[Extd, Res], O]): O = {
         new ExtractSyntax[C, T, Res, Invariant](Left(or)).apply(f)(e, _if)
       }
     }
@@ -143,7 +144,7 @@ package object ops {
 
     class CaseAllSyntax[UB] {
       def apply[Res, EO <: Coproduct, O](f: (UB) => Res)
-        (implicit e: ExtractCovariant.Aux[C, UB, EO, MatchRequired], _if: IF.Aux[EO =:= CNil, Res, Case[EO, Res], O]): O = {
+        (implicit e: ExtractCovariant.Aux[C, UB, EO], _if: IF.Aux[EO =:= CNil, Res, Case[EO, Res], O]): O = {
         new ExtractSyntax[C, UB, Res, Covariant](Left(or)).apply(f)(e, _if)
       }
     }

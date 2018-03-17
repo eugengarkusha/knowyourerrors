@@ -17,6 +17,8 @@ import _root_.ops.ops._
 import _root_.ops.EitherOps._
 import errors.{Cause, GenErr, GenError}
 import shapeless.syntax.inject._
+import shapeless.ops.coproduct.Remove
+
 
 import scala.util.Try
 
@@ -134,32 +136,29 @@ class CombinationsTest extends FunSuite with Matchers {
 
   test("all-in-one: combination of different error and non-error contexts and handling errors") {
 
-    type genErrWrapped = NoStorage +: WrongInput :+: UnexcpectedErr
+    type genErrQualified = NoStorage +: WrongInput :+: UnexcpectedErr
 
-    //Fully wrap the general error with concrete errors(partial wrapping is done the same way)
-    def wrapGenErr(g: GenErr): genErrWrapped = {
+    //Fully qualify the general error with concrete errors(partial wrapping is done the same way)
+    def qualifyGenErr(g: GenErr): genErrQualified = {
       g.cause match{
-        case Some(Right(e:FileNotFoundException))       => NoStorage("comment", e).inject[genErrWrapped]
-        case Some(Right(e: IllegalArgumentException))   => WrongInput("comment", e).inject[genErrWrapped]
-        case other: Cause => UnexcpectedErr("comment", other).inject[genErrWrapped]
+        case Some(Right(e:FileNotFoundException))       => NoStorage("comment", e).inject[genErrQualified]
+        case Some(Right(e: IllegalArgumentException))   => WrongInput("comment", e).inject[genErrQualified]
+        case other: Cause => UnexcpectedErr("comment", other).inject[genErrQualified]
       }
     }
 
 
     //combining:
 
-
     val commonErr = {
-      //Combining all methods errors signatures
-      val fl = Flatten[genErrWrapped +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType +: Api.simpleErrorType +: Api.methodWithGenErrType]
-      //Removing the fully wrapped errors(TODO: create Diff operation to exclude the set of types from coproduct)
-      ExtractInvariant._type[GenErr, fl.Out]
+      //Combining all methods errors signatures(except methodWithGenErr whose errors are partially transformed (see genErrQualified))
+       Flatten[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
     }
 
     val mt = for {
       a     <- Api.methodA.align[commonErr.Out]
       b     <- Api.methodB.align[commonErr.Out]
-      gen   <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](wrapGenErr).align[commonErr.Out])
+      gen   <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](qualifyGenErr).align[commonErr.Out])
       aa    <- Api.syncMethod.futMtA[commonErr.Out]
       ext   <- Try(ExternalApi.excThrowingMethod).wrapWith(t => UnexcpectedErr("extApi err", Some(t.right))).futMtA[commonErr.Out]
       sel   <- Api.methodWithSimpleErrList.align[commonErr.Out]
@@ -170,11 +169,11 @@ class CombinationsTest extends FunSuite with Matchers {
     } yield (a, b, c, d, sel, sumEl, se)
 
     //expanding fl.Out for the sake of test descriptiveness
-    type errType = NoStorage +: WrongInput +: UnexcpectedErr +: Short +: Double +: Int +: List[Int :+: String] +: List[String] +: Byte :+: String
+    type errType = NoStorage +: WrongInput +: UnexcpectedErr +: String +: Short +: Double +: Int +: List[Int :+: String] +: List[String] :+: Byte
     implicitly[errType =:= commonErr.Out]
     val result: Either[errType, (String, String, Option[String], String, String, String, String)] = Await.result(mt.v, 1.second)
 
-    result should be(Left(Inr(Inr(Inr(Inr(Inr(Inl(404))))))))
+    result should be(Left(Inr(Inr(Inr(Inr(Inr(Inr(Inl(404)))))))))
 
     //handling:
     val r: String = {

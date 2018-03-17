@@ -2,6 +2,7 @@ package coproduct.ops
 
 import coproduct.Coproduct._
 import shapeless.{Coproduct, CNil}
+import shapeless.ops.coproduct.Remove
 //remove members of B from A
 
 trait Diff [A, B]{
@@ -26,10 +27,10 @@ object Diff extends difflo{
   }
 
   implicit def matchRecurse[A <: Coproduct, BL, BR <: Coproduct, EO <: Coproduct, DO <: Coproduct]
-  (implicit e: ExtractInvariant.Aux[A, BL, EO] , diff: Diff.Aux[EO, BR, DO]):Diff.Aux[A, BL +: BR, DO]  = {
+  (implicit e: Remove.Aux[A, BL, EO] , diff: Diff.Aux[EO, BR, DO]):Diff.Aux[A, BL +: BR, DO]  = {
     new Diff[A, BL +: BR] {
       override type Out = DO
-      override def apply(a: A): Option[DO] = e(a).fold(diff(_), _ => None)
+      override def apply(a: A): Option[DO] = e(a).fold(_ => None, diff(_))
     }
   }
 

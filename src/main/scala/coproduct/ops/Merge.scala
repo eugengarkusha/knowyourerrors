@@ -13,7 +13,7 @@ trait Merge[A, B] {
 
 trait CNilR {
   self: Merge.type =>
-  //distinguishing beetween cnilR and cnilL for performance
+  //distinguishing beetween CNil on the right and CNil on the left for performance
   implicit def cnilR[A <: Coproduct](implicit add: Add.Aux[A, CNil, A]): Aux[A, CNil, A] = new Merge[A, CNil] {
     type Out = A
     def append(a: A): A = a
@@ -22,7 +22,7 @@ trait CNilR {
 
 }
 
-object Merge extends CNilR /*with plain */{
+object Merge extends CNilR {
 
   type Aux[A, B, O] = Merge[A, B] {type Out = O}
 
