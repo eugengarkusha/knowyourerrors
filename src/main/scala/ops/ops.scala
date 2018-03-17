@@ -9,7 +9,7 @@ import EitherOps.FutureEitherMT
 import coproduct.Coproduct._
 import coproduct._
 import shapeless.{<:!<,=:!=, HList, CNil, Coproduct}
-import shapeless.ops.coproduct.{Inject, Basis}
+import shapeless.ops.coproduct.{Inject, Basis, Prepend}
 import misc.boolOps._
 import coproduct.ops._
 import cats.syntax.either._
@@ -96,26 +96,26 @@ object ops {
 
     def handle[RR >: Res](f: Err => RR): RR = e.valueOr(f)
 
-    def or[Err1, ErrCP <: Coproduct, Err1CP <: Coproduct, O](e1: Either[Err1, Res])(
-      implicit le: LiftCp.Aux[Err, ErrCP], le1: LiftCp.Aux[Err1, Err1CP], m: Merge.Aux[ErrCP, Err1CP, O]
+    def or[Err1, ErrCP <: Coproduct, Err1CP <: Coproduct, O <: Coproduct](e1: Either[Err1, Res])(
+      implicit le: LiftCp.Aux[Err, ErrCP], le1: LiftCp.Aux[Err1, Err1CP], m: Prepend.Aux[ErrCP, Err1CP, O]
     ): Either[O, Res] = {
       //avoiding the runtime repacking
       def cast(e: Either[Any, Res]) = e.asInstanceOf[Either[O, Res]]
       e.fold(
         err => e1.fold(
-          err1 => Left(m.prepend(le1(err1))),
+          err1 => Left(m(Right(le1(err1)))),
           _ => cast(e1)
         ),
         _ => cast(e)
       )
     }
 
-    def joinCP[Err2, Res2, LC1<: Coproduct, LC2<: Coproduct, MO](
-      implicit ev: Res <:< Either[Err2, Res2], liftCp: LiftCp.Aux[Err, LC1], liftCp2: LiftCp.Aux[Err2, LC2], m: Merge.Aux[LC1, LC2, MO]
+    def joinCP[Err2, Res2, LC1<: Coproduct, LC2<: Coproduct, MO <: Coproduct](
+      implicit ev: Res <:< Either[Err2, Res2], liftCp: LiftCp.Aux[Err, LC1], liftCp2: LiftCp.Aux[Err2, LC2], m: Prepend.Aux[LC1, LC2, MO]
     ): Either[MO, Res2] = {
       e.fold(
-        l => Left(m.append(liftCp(l))),
-        r => ev(r).left.map(l => m.prepend(liftCp2(l)))
+        l => Left(m(Left(liftCp(l)))),
+        r => ev(r).left.map(l => m(Right(liftCp2(l))))
       )
     }
 

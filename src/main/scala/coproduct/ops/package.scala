@@ -3,9 +3,8 @@ package coproduct
 import coproduct.ops.MatchSyntax.{Case, ExtractSyntax}
 import coproduct.Coproduct._
 import misc.boolOps._
-import shapeless.ops.coproduct.{Basis, Selector}
+import shapeless.ops.coproduct.{Basis, Prepend, Remove, Selector}
 import shapeless.{CNil, Coproduct}
-import shapeless.ops.coproduct.Remove
 
 package object ops {
 
@@ -15,9 +14,9 @@ package object ops {
 
   trait If[T] {
     def map[V](f: T => V): If[V]
-    def _else[X, T1<: Coproduct, X1<: Coproduct, O](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O]
-    def elseIf[X, T1<: Coproduct, X1<: Coproduct, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O]
-    def _else[X, T1<: Coproduct, X1<: Coproduct, O](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O
+    def _else[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): If[O]
+    def elseIf[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): If[O]
+    def _else[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): O
 
     def opt: Option[T]
     def left[R](r: => R): Either[T, R]
@@ -26,14 +25,14 @@ package object ops {
 
   class IfTrue[T](v: => T) extends If[T] {
     override def map[V](f: T => V): If[V] = new IfTrue[V](f(v))
-    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](not_used: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
-      map(t => m.append(lt(t)))
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](not_used: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): If[O] = {
+      map(t => m(Left(lt(t))))
     }
-    override def elseIf[X, T1<: Coproduct, X1<: Coproduct, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
+    override def elseIf[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): If[O] = {
       _else("this should be never invoked".asInstanceOf[If[X]])
     }
-    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](not_used: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O = {
-      m.append(lt(v))
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](not_used: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): O = {
+      m(Left(lt(v)))
     }
     def opt: Option[T] = Some(v)
     def left[R](r: => R): Either[T, R] = Left(v)
@@ -42,14 +41,14 @@ package object ops {
 
   class IfFalse[T] extends If[T] {
     override def map[V](f: T => V): If[V] = this.asInstanceOf[If[V]]
-    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
-      _if.map(x => m.prepend(lx(x)))
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](_if: => If[X])(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): If[O] = {
+      _if.map(x => m(Right(lx(x))))
     }
-    override def elseIf[X, T1<: Coproduct, X1<: Coproduct, O](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): If[O] = {
-      If(cond1)(m.prepend(lx(v1)))
+    override def elseIf[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](cond1: Boolean)(v1: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): If[O] = {
+      If(cond1)(m(Right(lx(v1))))
     }
-    override def _else[X, T1<: Coproduct, X1<: Coproduct, O](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Merge.Aux[T1, X1, O]): O = {
-      m.prepend(lx(other))
+    override def _else[X, T1<: Coproduct, X1<: Coproduct, O<: Coproduct](other: => X)(implicit lt: LiftCp.Aux[T, T1], lx: LiftCp.Aux[X, X1], m: Prepend.Aux[T1, X1, O]): O = {
+      m(Right(lx(other)))
     }
     def opt: Option[T] = None
     def left[R](r: => R): Either[T, R] = Right(r)

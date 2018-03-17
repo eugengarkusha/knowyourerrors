@@ -3,8 +3,8 @@ package coproduct.ops
 import coproduct.Coproduct._
 import shapeless.{Coproduct, CNil}
 import shapeless.ops.coproduct.Remove
-//remove members of B from A
 
+//remove members of B from A
 trait Diff [A, B]{
   type Out <: Coproduct
   def apply(a: A): Option[Out]
