@@ -1,9 +1,10 @@
 package errorhandling.apidesigndemo
 
 import scala.concurrent.Future
-import _root_.coproduct._
+
 import _root_.coproduct.ops._
 import _root_.coproduct.Coproduct._
+import shapeless.syntax.inject._
 import errors.GenErr
 
 object Api {
@@ -18,7 +19,7 @@ object Api {
 
   //different functions returing err+:s:
   type aErrType = Err1 +: Err2 :+: Err3
-  def methodA: Future[Either[aErrType, String]] = Future.successful(Left(Inject(404).to[aErrType]))
+  def methodA: Future[Either[aErrType, String]] = Future.successful(Left(404.inject[aErrType]))
 
   type syncMethodErrType = Err1
   def syncMethod: Either[syncMethodErrType, String] = Left("Err1")
@@ -36,7 +37,7 @@ object Api {
   def methodWithSimpleErrList: Future[Either[simpleErrListType, String]] = Future.successful(Left(List("")))
 
   type sumErrListType = List[Err2 :+: Err1]
-  def methodWithSumErrList: Future[Either[sumErrListType, String]] = Future.successful(Left(List(Inject(200).to[Err2 :+: Err1])))
+  def methodWithSumErrList: Future[Either[sumErrListType, String]] = Future.successful(Left(List(200.inject[Err2 :+: Err1])))
 
   type methodWithGenErrType = Err1 :+: GenErr
   def methodWithGenErr: Future[Either[methodWithGenErrType, String]] = Future.successful(Right("noerr"))

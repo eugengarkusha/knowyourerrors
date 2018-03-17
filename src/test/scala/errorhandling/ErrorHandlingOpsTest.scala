@@ -9,12 +9,14 @@ import scala.concurrent.{Await, Future}
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import shapeless.{Inl, Inr, CNil}
+import shapeless.{CNil, Inl, Inr}
 import _root_.coproduct.ops._
 import _root_.coproduct.Coproduct._
 import _root_.ops.ops._
 import _root_.ops.EitherOps._
 import errors.GenErr
+import shapeless.ops.coproduct.Inject
+import shapeless.syntax.inject._
 
 class ErrorHandlingOpsTest extends WordSpec with Matchers {
 
@@ -139,7 +141,7 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
     PartHandledL shouldBe Right("1")
 
     //removing CNil at the last step
-    val js1: Either[Short, String] = Left(Inject(42).to[Int :+: Short]).partiallyHandle(_._case[Int](_.toString))
+    val js1: Either[Short, String] = Left(42.inject[Int :+: Short]).partiallyHandle(_._case[Int](_.toString))
     js1 shouldBe(Right("42"))
 
     val handled: String = aligned.handle(_ => "err")
@@ -148,8 +150,8 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
     val handledL: String = alignedL.handle(_ => "err")
     handledL shouldBe "err"
 
-    Left(Inject(1).to[common]).hasError[Int] shouldBe true
-    Left(Inject("blah").to[common]).hasError[Int] shouldBe false
+    Left(1.inject[common]).hasError[Int] shouldBe true
+    Left("blah".inject[common]).hasError[Int] shouldBe false
     Right[common, Int](42).hasError[Int] shouldBe false
 
     val tobeJoined: Either[Long :+: String, Either[Unit :+: Char, Symbol]] = {
@@ -186,9 +188,6 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
     val i = 1
 
     """i.injectTo[String :+: Boolean]""" shouldNot typeCheck
-
-    val injected: String :+: Int = i.injectTo[String :+: Int]
-    injected shouldBe Inr(Inl(1))
 
     val added: Int +: String :+: Boolean = i.addTo[String :+: Boolean]
     added shouldBe Inl(1)

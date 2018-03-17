@@ -16,6 +16,7 @@ import _root_.coproduct.ops._
 import _root_.ops.ops._
 import _root_.ops.EitherOps._
 import errors.{Cause, GenErr, GenError}
+import shapeless.syntax.inject._
 
 import scala.util.Try
 
@@ -83,19 +84,19 @@ class CombinationsTest extends FunSuite with Matchers {
   test("caseAll, caseOthers, suspend"){
     type commonSuper = UnexcpectedErr +: WrongInput :+: GenError
 
-    Inject(UnexcpectedErr("err", null)).to[commonSuper]
+    UnexcpectedErr("err", null).inject[commonSuper]
       ._caseAll[GenError](_.toString) should be("UnexcpectedErr(err,null)")
 
 
     val partiallyHandled: Either[Int, String] ={
-      Inject(UnexcpectedErr("err", null)).to[Int +: commonSuper]
+      UnexcpectedErr("err", null).inject[Int +: commonSuper]
       ._caseAll[GenError](_.toString)
       .suspend
     }
     partiallyHandled should be(Right("UnexcpectedErr(err,null)"))
 
 
-    val err: commonSuper = Inject(NoStorage("sdad", null): GenError).to[commonSuper]
+    val err: commonSuper = (NoStorage("sdad", null): GenError).inject[commonSuper]
 
     val r2: String = err._case[WrongInput](_.toString)._caseAll[GenError](_.toString)
     r2 should be ("NoStorage(sdad,null)")
@@ -112,8 +113,8 @@ class CombinationsTest extends FunSuite with Matchers {
 
     def wrapGenErr(g: GenErr): wrappedErr = {
       g.cause match {
-        case  Some(Right(e:FileNotFoundException)) => NoStorage("comment", e).injectTo[wrappedErr]
-        case _                          => g.injectTo[wrappedErr]
+        case  Some(Right(e:FileNotFoundException)) => NoStorage("comment", e).inject[wrappedErr]
+        case _                          => g.inject[wrappedErr]
       }
 
     }
@@ -138,9 +139,9 @@ class CombinationsTest extends FunSuite with Matchers {
     //Fully wrap the general error with concrete errors(partial wrapping is done the same way)
     def wrapGenErr(g: GenErr): genErrWrapped = {
       g.cause match{
-        case Some(Right(e:FileNotFoundException))       => NoStorage("comment", e).injectTo[genErrWrapped]
-        case Some(Right(e: IllegalArgumentException))   => WrongInput("comment", e).injectTo[genErrWrapped]
-        case other: Cause => UnexcpectedErr("comment", other).injectTo[genErrWrapped]
+        case Some(Right(e:FileNotFoundException))       => NoStorage("comment", e).inject[genErrWrapped]
+        case Some(Right(e: IllegalArgumentException))   => WrongInput("comment", e).inject[genErrWrapped]
+        case other: Cause => UnexcpectedErr("comment", other).inject[genErrWrapped]
       }
     }
 

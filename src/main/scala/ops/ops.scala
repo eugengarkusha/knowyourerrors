@@ -9,6 +9,7 @@ import EitherOps.FutureEitherMT
 import coproduct.Coproduct._
 import coproduct._
 import shapeless.{<:!<,=:!=, HList, CNil, Coproduct}
+import shapeless.ops.coproduct.Inject
 import misc.boolOps._
 import coproduct.ops._
 import cats.syntax.either._
@@ -129,7 +130,6 @@ object ops {
   }
 
   implicit class AnyOps[T](t: T)(implicit ev: T <:!< CNil) {
-    def injectTo[C](implicit a: Add.Aux[C, T, C]): C = a(t)
     def addTo[C](implicit m: Add[C, T]): m.Out = m.apply(t)
     def left[R]: Either[T, R] = Left(t)
     def right[L]: Either[L, T] = Right(t)

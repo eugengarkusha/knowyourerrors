@@ -54,13 +54,3 @@ object Add extends prepend {
   def apply[V](a: V): AddSyntax[V] = new AddSyntax(a)
 }
 
-//Inject syntax. Ensures that addition will not happen.
-object Inject {
-  class InjectSyntax[V](a: V) {
-    //disallowing empty coproducts. Use Coproduct.empty to create empty one
-    def to[U](implicit i: Add.Aux[U, V, U], ev: V <:!< CNil): U = i.apply(a)
-  }
-
-  def apply[V](a: V): InjectSyntax[V] = new InjectSyntax(a)
-
-}
