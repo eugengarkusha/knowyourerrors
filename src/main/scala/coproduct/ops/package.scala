@@ -129,10 +129,6 @@ package object ops {
 
     def extendWith[T](implicit a: Add[C, T]): a.Out = a.extend(or)
 
-    def append[C1 <: Coproduct](implicit a: AndThen32[L +: R, C1, Merge.Aux, Dedup.Aux]): a.Out = a.b(a.a.append(or))
-
-    def prepend[C1 <: Coproduct](implicit a: AndThen32[C1, L +: R, Merge.Aux, Dedup.Aux]): a.Out = a.b(a.a.prepend(or))
-
     class CaseSyntax[T] {
       def apply[Res, Extd <: Coproduct, O](f: T => Res)
         (implicit e: Extract.Aux[C, T, Extd, Invariant], _if: IF.Aux[Extd =:= CNil, Res, Case[Extd, Res], O]): O = {

@@ -1,6 +1,6 @@
 package ops
 
-import coproduct.ops.{AndThen, LiftCp, MatchSyntax}
+import coproduct.ops.{LiftCp, MatchSyntax}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
