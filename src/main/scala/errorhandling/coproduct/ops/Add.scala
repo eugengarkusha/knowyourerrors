@@ -3,11 +3,8 @@ package errorhandling.coproduct.ops
 import errorhandling.coproduct.Coproduct._
 import shapeless.{<:!<, Coproduct, CNil, Inl, Inr}
 
-////Adds a value in coproduct. Used for addtiton of a new element and injecting existing elements and extending coproduct on type-level
-////Think of renaming to Inject/Extend
 
-//first tries to inject an element (injectR method) and if it fails(element does not exist in coproduct)
-//it prepends the element(append has runtime complexity of N)
+//first tries to inject an element (injectR method) and if element does not exist in coproduct it prepends the element
 
 trait Add[C, V] {
   type Out
@@ -42,7 +39,10 @@ object Add extends prepend {
     new Add[L +: R, V] {
       override type Out = L +: R
       override def apply(a: V): Out = Inr[L, R](add(a))
-      override def extend(u: L +: R): Out = u.map(add.extend(_))
+      override def extend(u: L +: R): Out = u  match {
+        case cl: Inl[L, R] => cl
+        case Inr(r)        => Inr(add.extend(r))
+      }
     }
 
   class AddSyntax[V](a: V) {

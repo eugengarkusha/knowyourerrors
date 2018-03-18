@@ -2,6 +2,7 @@ package errorhandling.coproduct.ops
 
 import errorhandling.coproduct.Coproduct._
 import shapeless.{Coproduct, Inl, <:!<, CNil}
+
 //Lifts T to Coproduct (if T is coproduct than just return T else return T :+ Cnil)
 trait LiftCp[T] {
   type Out <: Coproduct

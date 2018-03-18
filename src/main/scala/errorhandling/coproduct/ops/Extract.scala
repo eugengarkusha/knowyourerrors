@@ -11,7 +11,8 @@ trait Covariant extends VarianceType
 trait Invariant extends VarianceType
 
 // Version of shapeless.Remove allowing both Invariant (shapeless default) and covariant removal
-// abstrating over Variance type is needed in MatchSyntax.ExtractSyntax(may also be needed elsewhere)
+// abstrating over Variance type is needed in MatchSyntax.CaseSyntax(may also be needed elsewhere)
+
 trait Extract[C, V, Type <: VarianceType] {
   type Rest <: Coproduct
   def apply(a: C): Either[Rest, V]

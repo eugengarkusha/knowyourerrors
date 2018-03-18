@@ -19,29 +19,14 @@ class CoproductOpsTest extends WordSpec with Matchers {
   case object X extends SuperXY
   case object Y extends SuperXY
 
-  "adding/injecting a value" in {
+  "adding a value" in {
 
     type C = String :+: Boolean
 
     val i: Int +: String :+: Boolean = Add(1).to[C]
+    val i2: Int +: String :+: Boolean = Add(1).to[Int +: C]
     i should be(Inl(1))
-
-    val i1: C = "s".inject[C]
-    i1 should be(Inl("s"))
-
-    """1.inject[C]""" shouldNot typeCheck
-    """CNil.inject[Int +: CNil]""" shouldNot typeCheck
-  }
-
-  "extracting/removing values (invariant)" in {
-    val extracted: Either[String :+: Short, Int] = intVal.extract[Int]
-    extracted should be(Right(1))
-
-    val extracted1: Either[Int :+: Short, String] = intVal.extract[String]
-    extracted1 should be(Left(Inl(1)))
-
-    intVal.extractAll[Any] should be(Right(1))
-
+    i2 should be(Inl(1))
   }
 
 
@@ -58,6 +43,9 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
     val all1: Either[Int +: CNil, SuperXY] = X.inject[alltype].extractAll[SuperXY]
     all1 should be(Right(X))
+
+    intInjected.extractAll[Any] should be(Right(1))
+
   }
 
   "getting the least upper bound value" in {
@@ -68,7 +56,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
   }
 
   "covariant mapping" in {
-    val v: String +: X.type :+: Y.type = Inr(Inl(X))
+    val v = X.inject[String +: X.type :+: Y.type]
     val mapped: String +: Int :+: Int = v.mapC[SuperXY](_ => 1)
     mapped should be(Inr(Inl(1)))
   }
@@ -81,7 +69,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
   "covariant flatMapping" in {
     val v: String +: X.type :+: Y.type = Inr(Inl(X))
-    val flatmapped: String +: CNil = v.flatMapC[SuperXY](_.toString).dedup
+    val flatmapped: String :+: Int  = v.flatMapC[SuperXY](_.toString.inject[String :+: Int]).dedup
     flatmapped should be(Inl("X"))
   }
 
@@ -101,9 +89,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
     val flatMapped2: String +: Byte :+: Short = intVal.flatMapI[Int](v => i2R(v - 100)).dedup
     flatMapped2 should be(Inl("blah"))
 
-    //this behavior is  possible because flatmap is implemented as map and then flatten
-    //TODO: think of disabling this behavior in flatMap, it should be supported as part of 'mapI' case
-    val flatMapped3: +:[String, +:[Short, CNil]] = intVal.flatMapI[Int](_.toString).dedup
+    val flatMapped3: String :+: Short = intVal.flatMapI[Int](_.toString.inject[String +: CNil]).dedup
     flatMapped3 should be(Inl("1"))
   }
 
@@ -118,12 +104,6 @@ class CoproductOpsTest extends WordSpec with Matchers {
     (1.inject[ft.Out]: Byte +: String +: Short +: Int :+: Double) should be(Inr(Inr(Inr(Inl(1)))))
   }
 
-
-
-  "extend with single type" in {
-    val extended: Boolean +: String +: Int :+: Short = intVal.extendWith[Boolean]
-    extended should be(Inr(Inr(Inl(1))))
-  }
 
   "case syntax" in {
 

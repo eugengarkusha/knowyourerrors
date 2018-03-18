@@ -3,16 +3,7 @@ package errorhandling.coproduct.ops
 import errorhandling.coproduct.Coproduct._
 import shapeless.{<:!<, =:!=, CNil, Coproduct, Inl, Inr}
 
-// Applies a function to:
-// -- covariant mode:  of subtype of T
-// -- invarinat mode: first position of exact type T
-
-//TODO: Make it Map all values of type T!!!!
-//TODO2: Make mapCover respect order
-
-// Would not need that if it would be possible to create shapeless polyfunctions (from monofunctions) as literals (i.e: without separate declaration)
-
-//mapping monofunction over coproduct (and removing duplicates)
+//Maps monofunction over coproduct(covariant and invariant modes are supported). Using shapeless.PodyDefns.-> requires separate object declaration(cannot be used inline)
 trait MonoMap[C, S, D, V] {
   type Out
   def apply(u: C, f: S => D): Out

@@ -2,7 +2,7 @@ package errorhandling.coproduct
 
 import errorhandling.coproduct.Coproduct._
 import errorhandling.misc.boolOps._
-import shapeless.ops.coproduct.{Remove, Selector}
+import shapeless.ops.coproduct.Selector
 import shapeless.{CNil, Coproduct, Poly1}
 import ops.MatchSyntax._
 
@@ -41,7 +41,7 @@ package object ops {
           implicit ev: C1 <:< (L +: R),
           _if: IF.Aux[R =:= CNil, L, C1, O]
       ): Either[O, Res] = {
-        rc.left.map(err => _if(ev(err).left.getOrElse(emptyErr), err))
+        rc.left.map(err => _if(ev(err).eliminate(identity, _ => emptyErr), err))
       }
     }
   }
@@ -57,8 +57,6 @@ package object ops {
     //extract the value from this coproduct as the least uper bound of all types
     def lub[O](implicit get: Selector[C, O]): O = get(or).ensuring(_.isDefined).get
 
-    def extract[T](implicit remove: Remove[C, T]): Either[remove.Rest, T] = remove(or).swap
-
     def extractAll[V](implicit extract: ExtractCovariant[C, V]): Either[extract.Rest, V] = extract(or)
 
     class MapSyntax[S, V <: VarianceType] {
@@ -70,7 +68,7 @@ package object ops {
     def mapC[S]: MapSyntax[S, Covariant] = new MapSyntax[S, Covariant]
 
     class FlatMapSyntax[S, V <: VarianceType] {
-      def apply[D, MO <: Coproduct, O <: Coproduct](f: S => D)(
+      def apply[D <: Coproduct, MO <: Coproduct, O <: Coproduct](f: S => D)(
           implicit m: MonoMap.Aux[C, S, D, MO, V],
           df: FlattenAux[MO, O]
       ): O = df(m(or, f))
@@ -79,8 +77,6 @@ package object ops {
     def flatMapI[S]: FlatMapSyntax[S, Invariant] = new FlatMapSyntax[S, Invariant]
 
     def flatMapC[S]: FlatMapSyntax[S, Covariant] = new FlatMapSyntax[S, Covariant]
-
-    def extendWith[T](implicit a: Add[C, T]): a.Out = a.extend(or)
 
     def _case[T]: InitialCaseSyntax[T] = new InitialCaseSyntax[T]
 

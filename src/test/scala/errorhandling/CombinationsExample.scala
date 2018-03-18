@@ -76,21 +76,19 @@ class CombinationsExample extends FunSuite with Matchers {
   }
 
 
-
   test("partial wrapping") {
     //works the same as full wrapping shown in all-in-one case
 
-    type partQalifiedErr = GenErr :+: NoStorage
+    type partiallyResolvedErr = GenErr :+: NoStorage
 
-    def partiallyResolve(g: GenErr): partQalifiedErr = {
+    def partiallyResolve(g: GenErr): partiallyResolvedErr = {
       g.cause match {
-        case  Some(Right(e:FileNotFoundException)) => NoStorage("comment", e).inject[partQalifiedErr]
-        case _                          => g.inject[partQalifiedErr]
+        case  Some(Right(e:FileNotFoundException)) => NoStorage("comment", e).inject[partiallyResolvedErr]
+        case _                          => g.inject[partiallyResolvedErr]
       }
-
     }
 
-    val commonErrType = flattenDedupType[Api.methodWithGenErrType +: Api.bErrType +: partQalifiedErr]
+    val commonErrType = flattenDedupType[Api.methodWithGenErrType +: Api.bErrType +: partiallyResolvedErr]
 
     val partiallyWrapped: EitherT[Future, commonErrType.Out, (String, String)] = {
       for {
@@ -100,14 +98,13 @@ class CombinationsExample extends FunSuite with Matchers {
     }
 
     Await.result(partiallyWrapped.value, 1.second) should be(Right("noerr" -> "b"))
-
   }
 
   test("all-in-one: combination of different error and non-error contexts and handling errors") {
 
     type genErrResolved = NoStorage +: WrongInput :+: UnexcpectedErr
 
-    //Fully qualify the general error with concrete errors(partial wrapping is done the same way)
+    //Fully resolve the general error with concrete errors(partial wrapping is done the same way)
     def resolveGenErr(g: GenErr): genErrResolved = {
       g.cause match{
         case Some(Right(e:FileNotFoundException))       => NoStorage("comment", e).inject[genErrResolved]
@@ -116,8 +113,6 @@ class CombinationsExample extends FunSuite with Matchers {
       }
     }
 
-
-    //combining:
 
     val commonErr = {
       //Combining all methods errors signatures(except methodWithGenErr whose errors are partially transformed (see genErrResolved))
@@ -168,43 +163,9 @@ class CombinationsExample extends FunSuite with Matchers {
           ._case[List[Api.Err2 :+: Api.Err1]](_.foldLeft("")((agr, next) => agr + " : " + handleListErr(next)))
           ._caseAll[Any](a => "other error")
       }
-
     }
 
     r should be("code 404")
 
   }
-
-
 }
-
-/*
-error contexts:
-1)external synchronous api call which we expect to throw exceptions
-2)internal synchronous api with error context(Either[L,R])
-3)internal asynchronous api with error context (Future[Either[L,R]]
-4)internal/external asynchronous api with NO err context
-
-1)
-a) pack:                val packed = Try(apicall).asEither(ConcreteError("some msg", cause = _))
-a1)pack(general error): val packed = Try(apicall).pack  /*or pack("optionalMessage")*/  //will pack exception in GenErr
-b).embed errors:        val.embeded = packed.embed[GenErr]                              // ready to be combined in sync context
-c) put into async ctx: .embeded.futMt  // +: skipping step 'b' packed.futMtA[GenErr]    // ready to be combined in async context
-alltogether: Try(apicall).asEither(Error("some msg", cause = _)).futMtA[GenErr]
-
-2) same as 1 (same as 1, points b and c)
-
-3)
-3a)prepare for combining: apicall.mt
-3b.embed errors and prare for combining: apicall.embed[GenErr]
-
-4)prepare for combining: apicall.right
-
-
-reactions:
-1)handle
-2)partially handle
-3)partially/fully wrap
-
- */
-

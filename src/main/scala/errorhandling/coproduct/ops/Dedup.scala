@@ -3,11 +3,10 @@ package errorhandling.coproduct.ops
 import errorhandling.coproduct.Coproduct._
 import shapeless.{Coproduct, CNil}
 
-//Deduplicates coproduct types. For internal use only(it should not be reasonable co construct coproduct with duplicates)
-//See 'Flatten' for combining coproducts like C1 +: C2
+//Deduplicates coproduct types.
 
-//adds all left elements of a coproduct to right side recursively (Add operation will remove the type if it already exists)
-//no runtime operations are performed if coproduct has distinct elements
+//adds all left elements to right recursively (Add operation will remove the type if it already exists)
+//no runtime operations are performed if coproduct already has distinct types
 
 trait Dedup[C] {
   type Out
