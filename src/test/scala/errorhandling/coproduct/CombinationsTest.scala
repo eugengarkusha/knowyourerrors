@@ -16,7 +16,6 @@ import _root_.coproduct.Coproduct._
 import _root_.coproduct.ops._
 import _root_.ops.ops._
 import _root_.ops.EitherOps._
-import errorhandling.FlattenDedup
 import errors.{Cause, GenErr, GenError}
 import shapeless.syntax.inject._
 import shapeless.ops.coproduct.Remove
@@ -50,9 +49,9 @@ class CombinationsTest extends FunSuite with Matchers {
     type commonErr = Api.syncMethodErrType +: Api.syncMethod1ErrType
 
     val r: Either[commonErr, String] = for {
-      a <- Api.syncMethod.align[commonErr]
+      a <- Api.syncMethod.embed[commonErr]
       ne = Api.noErrorMethod
-      a1 <- Api.syncMethod1.align[commonErr]
+      a1 <- Api.syncMethod1.embed[commonErr]
     } yield a1 + ne + a
 
     r should be(Left(Inl("Err1")))
@@ -123,14 +122,14 @@ class CombinationsTest extends FunSuite with Matchers {
 
     }
 
-    val commonErrType1 = DeepFlatten[Api.methodWithGenErrType +: Api.bErrType +: wrappedErr]
+    val commonErrType1 = flattenDedupType[Api.methodWithGenErrType +: Api.bErrType +: wrappedErr]
 
     val commonErrType = Dedup[commonErrType1.Out]
 
     val partiallyWrapped: FutureEitherMT[commonErrType.Out, (String, String)] = {
       for {
-        a <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](wrapGenErr).align[commonErrType.Out])
-        b <- Api.methodB.align[commonErrType.Out]
+        a <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](wrapGenErr).embed[commonErrType.Out])
+        b <- Api.methodB.embed[commonErrType.Out]
       } yield a -> b
     }
 
@@ -156,18 +155,18 @@ class CombinationsTest extends FunSuite with Matchers {
 
     val commonErr = {
       //Combining all methods errors signatures(except methodWithGenErr whose errors are partially transformed (see genErrQualified))
-      FlattenDedup[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
+      flattenDedupType[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
     }
 
     val mt = for {
-      a     <- Api.methodA.align[commonErr.Out]
-      b     <- Api.methodB.align[commonErr.Out]
-      gen   <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](qualifyGenErr).align[commonErr.Out])
+      a     <- Api.methodA.embed[commonErr.Out]
+      b     <- Api.methodB.embed[commonErr.Out]
+      gen   <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](qualifyGenErr).embed[commonErr.Out])
       aa    <- Api.syncMethod.futMtA[commonErr.Out]
       ext   <- Try(ExternalApi.excThrowingMethod).toEither.left.map(t => UnexcpectedErr("extApi err", Some(t.right))).futMtA[commonErr.Out]
-      sel   <- Api.methodWithSimpleErrList.align[commonErr.Out]
-      sumEl <- Api.methodWithSumErrList.align[commonErr.Out]
-      se    <- Api.methodWithSimpleError.align[commonErr.Out]
+      sel   <- Api.methodWithSimpleErrList.embed[commonErr.Out]
+      sumEl <- Api.methodWithSumErrList.embed[commonErr.Out]
+      se    <- Api.methodWithSimpleError.embed[commonErr.Out]
       c     <- Api.noErrorAsyncMethod1.toRight
       d     <- Api.noErrorAsyncMethod2.toRight
     } yield (a, b, c, d, sel, sumEl, se)
@@ -223,15 +222,15 @@ error contexts:
 1)
 a) pack:                val packed = Try(apicall).asEither(ConcreteError("some msg", cause = _))
 a1)pack(general error): val packed = Try(apicall).pack  /*or pack("optionalMessage")*/  //will pack exception in GenErr
-b) align errors:        val aligned = packed.align[GenErr]                              // ready to be combined in sync context
-c) put into async ctx:  aligned.futMt  // +: skipping step 'b' packed.futMtA[GenErr]    // ready to be combined in async context
+b).embed errors:        val.embeded = packed.embed[GenErr]                              // ready to be combined in sync context
+c) put into async ctx: .embeded.futMt  // +: skipping step 'b' packed.futMtA[GenErr]    // ready to be combined in async context
 alltogether: Try(apicall).asEither(Error("some msg", cause = _)).futMtA[GenErr]
 
 2) same as 1 (same as 1, points b and c)
 
 3)
 3a)prepare for combining: apicall.mt
-3b)align errors and prare for combining: apicall.align[GenErr]
+3b.embed errors and prare for combining: apicall.embed[GenErr]
 
 4)prepare for combining: apicall.right
 

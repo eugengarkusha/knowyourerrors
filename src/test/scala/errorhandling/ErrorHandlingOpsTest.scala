@@ -127,26 +127,26 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
     val fmtaL: FutureEitherMT[common, String] = l.futMtA[common]
     fmtaL.v.value shouldBe Some(Success(Left(Inl(1))))
 
-    val aligned: Either[common, String] = r.align[common]
-    aligned shouldBe Right("s")
+    val embedded: Either[common, String] = r.embed[common]
+    embedded shouldBe Right("s")
 
-    val alignedL: Either[common, String] = l.align[common]
-    alignedL shouldBe Left(Inl(1))
+    val embeddedL: Either[common, String] = l.embed[common]
+    embeddedL shouldBe Left(Inl(1))
 
-    val partHandled = aligned.partiallyHandle(_._case[Int](_.toString))
+    val partHandled = embedded.partiallyHandle(_._case[Int](_.toString))
     partHandled shouldBe Right("s")
 
-    val PartHandledL: Either[String :+: Short, String] = alignedL.partiallyHandle(_._case[Int](_.toString))
+    val PartHandledL: Either[String :+: Short, String] = embeddedL.partiallyHandle(_._case[Int](_.toString))
     PartHandledL shouldBe Right("1")
 
     //removing CNil at the last step
     val js1: Either[Short, String] = Left(42.inject[Int :+: Short]).partiallyHandle(_._case[Int](_.toString))
     js1 shouldBe(Right("42"))
 
-    val handled: String = aligned.handle(_ => "err")
+    val handled: String = embedded.handle(_ => "err")
     handled shouldBe "s"
 
-    val handledL: String = alignedL.handle(_ => "err")
+    val handledL: String = embeddedL.handle(_ => "err")
     handledL shouldBe "err"
 
     Left(1.inject[common]).hasError[Int] shouldBe true

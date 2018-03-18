@@ -5,9 +5,9 @@ import org.scalatest.Matchers
 import org.scalatest.WordSpec
 import coproduct.Coproduct._
 import coproduct.ops._
-import errorhandling.FlattenDedup
 import shapeless.{CNil, Inl, Inr}
 import shapeless.syntax.inject._
+
 
 class CoproductOpsTest extends WordSpec with Matchers {
 
@@ -40,15 +40,6 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
     intVal.extractAll[Any] should be(Right(1))
 
-    val removed: Option[String :+: Short] = intVal.remove[Int]
-    removed shouldBe None
-
-    val removed1: Option[String :+: Int] = intVal.remove[Short]
-    removed1 shouldBe Some(Inr(Inl(1)))
-
-    intVal.contains[Int] shouldBe(true)
-    intVal.contains[String] shouldBe(false)
-    """intVal.contains[Char]""" shouldNot typeCheck
   }
 
 
@@ -113,23 +104,17 @@ class CoproductOpsTest extends WordSpec with Matchers {
     flatMapped3 should be(Inl("1"))
   }
 
-  //TODO: it should flatten only one level
-  "flattening (any levels of nesting)" in {
+  "flattening" in {
 
-    val nested = Add(1).to[(Byte :+: Int :+: Int) +: String +: Int :+: (Short :+: Int)]
+    val nested = Add(1).to[(Byte +: Int :+: Int) +: String +: Int :+: (Short :+: Int)]
 
     val flattened: Byte +: String +: Short :+: Int = nested.flatten.dedup
     flattened should be(Inr(Inr(Inr(Inl(1)))))
 
-    val ft = FlattenDedup[(Byte +: Int :+:(Int:+:String)) +: String +: Int :+: (Short :+: Int) :+: Double]
+    val ft = flattenDedupType[(Byte +: Int +:(Int:+:String)) +: String +: Int +: (Short :+: Int) :+: Double]
     (1.inject[ft.Out]: Byte +: String +: Short +: Int :+: Double) should be(Inr(Inr(Inr(Inl(1)))))
   }
 
-
-  "aligning to shape" in {
-    val aligned: Int +: Double +: String :+: Short = intVal.align[Int +: Double +: String :+: Short]
-    aligned should be(Inl(1))
-  }
 
 
   "extend with single type" in {

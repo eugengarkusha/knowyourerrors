@@ -4,9 +4,28 @@ import coproduct.ops.MatchSyntax.{Case, ExtractSyntax}
 import coproduct.Coproduct._
 import misc.boolOps._
 import shapeless.ops.coproduct.{Basis, Prepend, Remove, Selector}
-import shapeless.{CNil, Coproduct}
+import shapeless.{CNil, Coproduct, Poly1}
 
 package object ops {
+
+
+  object liftCpPoly extends Poly1 {
+    implicit def f[T](implicit lc: LiftCp[T]) = at[T](lc(_))
+  }
+
+  type Flatten[C<: Coproduct] = shapeless.ops.coproduct.FlatMap[C, liftCpPoly.type]
+  type FlattenAux[C<: Coproduct, O<: Coproduct] = shapeless.ops.coproduct.FlatMap.Aux[C,liftCpPoly.type , O]
+
+  trait FlattenDedupType[C<: Coproduct]{
+    type Out<: Coproduct
+  }
+  object FlattenDedupType{
+    type Aux[C<: Coproduct,  O<: Coproduct] = FlattenDedupType[C]{type Out = O}
+    implicit def inst[C<: Coproduct,  DO<: Coproduct,O<: Coproduct](implicit f: FlattenAux[C, DO], dd: Dedup.Aux[DO, O]): Aux[C, O] = null
+  }
+
+  def flattenDedupType[C<: Coproduct](implicit fd: FlattenDedupType[C]):FlattenDedupType.Aux[C, fd.Out] = fd
+
 
   object If {
     def apply[T](cond: Boolean)(v: => T): If[T] = if(cond) new IfTrue(v) else new IfFalse[T]
@@ -83,21 +102,16 @@ package object ops {
         rc.left.map(err => _if(ev.apply(err).left.getOrElse(emptyErr), err))
       }
     }
-
   }
 
 
-  //ops for non-empty coproducts(L +: R)
   implicit class CoproductOps[L, R <: Coproduct](or: L +: R) {
 
     type C = L +: R
 
-    // TODO: Use shapeless.syntax
-    def align[Super <: Coproduct](implicit basis: Basis[Super, C]): Super = basis.inverse(Right(or))
+    def flatten[O<: Coproduct](implicit fl: FlattenAux[C, O]): O = fl(or)
 
-    def flatten(implicit fl: DeepFlatten[C]): fl.Out = fl(or)
-
-    def dedup(implicit dd: Dedup[C]): dd.Out = dd(or)
+    def dedup[O](implicit dd: Dedup.Aux[C,O]):O = dd(or)
 
     //extract the value from this coproduct as the least uper bound of all types
     def lub[O](implicit get: Selector[C, O]): O = get(or).ensuring(_.isDefined).get
@@ -106,15 +120,10 @@ package object ops {
 
     def extractAll[V](implicit extract: ExtractCovariant[C, V]): Either[extract.Rest, V] = extract(or)
 
-    def contains[T](implicit remove: Remove[C, T]): Boolean = remove(or).isLeft
-
-    def remove[T](implicit remove: Remove[C, T]): Option[remove.Rest] = remove(or).fold(_ => None, Some(_))
-
     class MapSyntax[S, V <: VarianceType] {
       def apply[D](f: S => D)(implicit mapper: MonoMap[C, S, D, V]): mapper.Out = mapper(or, f)
     }
 
-    //TODO: create an implementation of PolyFcuntion for and a corresponding mapAll method
     def mapI[S]: MapSyntax[S, Invariant] = new MapSyntax[S, Invariant]
 
     def mapC[S]: MapSyntax[S, Covariant] = new MapSyntax[S, Covariant]
@@ -122,7 +131,7 @@ package object ops {
     class FlatMapSyntax[S, V <: VarianceType] {
       def apply[D, MO <: Coproduct ,O <: Coproduct, O1 <: Coproduct](f: S => D)(
         implicit m: MonoMap.Aux[C, S, D, MO, V],
-        df: DeepFlatten.Aux[MO, O],
+        df: FlattenAux[MO, O],
         d: Dedup.Aux[O, O1]
       ): O1 = d(df(m(or, f)))
     }

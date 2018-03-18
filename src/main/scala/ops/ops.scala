@@ -19,9 +19,9 @@ import errors._
 
 object ops {
 
-  trait Align[Err, Super <: Coproduct] extends (Err => Super)
-  object Align{
-    implicit def x[Err, Lerr<: Coproduct, Super<: Coproduct](implicit lcp: LiftCp.Aux[Err, Lerr], e: Basis[Super, Lerr]):Align[Err, Super]  =
+  trait Embed[Err, Super <: Coproduct] extends (Err => Super)
+  object Embed{
+    implicit def x[Err, Lerr<: Coproduct, Super<: Coproduct](implicit lcp: LiftCp.Aux[Err, Lerr], e: Basis[Super, Lerr]):Embed[Err, Super]  =
       v => e.inverse(Right(lcp(v)))
   }
 
@@ -30,7 +30,7 @@ object ops {
   implicit class FutureEitherOps[Err, Result](t: Future[Either[Err, Result]])(implicit ec: ExecutionContext) {
 
     def mt: FutureEitherMT[Err, Result] = FutureEitherMT(t)
-    def align[E <: Coproduct](implicit c: Align[Err, E]): FutureEitherMT[E, Result] = mt.leftMap(c)
+    def embed[E <: Coproduct](implicit c: Embed[Err, E]): FutureEitherMT[E, Result] = mt.leftMap(c)
     def partiallyHandle[L, R <: Coproduct, O, RR >: Result](f: Err => MatchSyntax.Case[L +: R, Result])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
     ): FutureEitherMT[O, RR] = {
@@ -42,7 +42,7 @@ object ops {
 
   //TODO: put executionContext to methods signatures and extend AnyVal!!!
   implicit class FutureEitherMTOps[Err, Result](t: FutureEitherMT[Err, Result])(implicit ec: ExecutionContext) {
-    def align[E <: Coproduct](implicit c: Align[Err, E]): FutureEitherMT[E, Result] = t.leftMap(c)
+    def embed[E <: Coproduct](implicit c: Embed[Err, E]): FutureEitherMT[E, Result] = t.leftMap(c)
     def partiallyHandle[L, R <: Coproduct, O, RR >: Result](f: Err => MatchSyntax.Case[L +: R, RR])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
     ): FutureEitherMT[O, RR] = {
@@ -79,11 +79,11 @@ object ops {
 
     def futMt(implicit ec: ExecutionContext): FutureEitherMT[Err, Res] = FutureEitherMT(Future.successful(e))
 
-    def futMtA[E<: Coproduct](implicit c: Align[Err, E], ec: ExecutionContext): FutureEitherMT[E, Res] = {
+    def futMtA[E<: Coproduct](implicit c: Embed[Err, E], ec: ExecutionContext): FutureEitherMT[E, Res] = {
       FutureEitherMT(Future.successful(e.left.map(c)))
     }
 
-    def align[E<: Coproduct](implicit c: Align[Err, E]): Either[E, Res] = e.left.map(c)
+    def embed[E<: Coproduct](implicit c: Embed[Err, E]): Either[E, Res] = e.left.map(c)
 
     def partiallyHandle[L, R <: Coproduct, O, RR >: Res](f: Err => MatchSyntax.Case[L +: R, RR])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
