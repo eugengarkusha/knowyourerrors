@@ -200,28 +200,7 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
 
   }
 
-  "try ops" in {
-    val err = new Exception()
-    val f: Try[String] = Failure(err)
-    val s: Try[String]= Success("s")
 
-    val es: Either[Throwable, String] = s.asEither
-    es shouldBe Right("s")
-    val ef: Either[Throwable, String] = f.asEither
-    ef shouldBe Left(err)
-
-    val ws: Either[Int, String] = s.wrapWith(_.toString.size)
-    ws shouldBe Right("s")
-
-    val wf: Either[Int, String] =f.wrapWith(_.toString.size)
-    wf shouldBe(Left(19))
-
-    val ps: Either[GenErr, String] = s.wrapWithErr("err happened")
-    ps shouldBe Right("s")
-
-    val pf: Either[GenErr, String] = f.wrapWithErr("err happened")
-    pf shouldBe(Left(GenErr("err happened", Some(Right(err)))))
-  }
   //TODO: cover other operations
 
 }

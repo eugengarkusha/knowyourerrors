@@ -146,54 +146,10 @@ object ops {
     if(cond) FutureEitherMT.right(()) else FutureEitherMT.left(err)
   }
 
-  implicit class TryOps[T](t: Try[T]) {
-
-    def asEither: Either[Throwable, T] = t match {
-      case Failure(e: Throwable) => if (NonFatal(e)) Left(e) else throw e
-      case Success(res) => Right(res)
-    }
-
-    def wrapWith[Err](f: Throwable => Err): Either[Err, T] = asEither.left.map(f)
-
-    def wrapWithErr(msg: String = ""): Either[GenErr, T] = t match {
-      case Failure(e: Throwable) => if (NonFatal(e)) Left(GenErr(msg, Some(Right(e)))) else throw e
-      case Success(res) => Right(res)
-    }
-  }
 
   //workaround for scalas strange bahaviour.Cannot throw exception from _case[T], compiler cannot find IF instance if Res type == Nothing
   def _throw[T <: Throwable](t: T): Null = throw t
 
-  def retry[T](v: => T, n: Int)(p: T => Boolean): T = {
-    if (n == 1) {
-      v
-    }
-    else {
-      val res = v
-      if (p(res)) {
-        retry(v, n - 1)(p)
-      }
-      else {
-        res
-      }
-    }
 
-  }
 
-  def retryAsync[T](v: => Future[T], n: Int)(p: T => Boolean)(implicit ec: ExecutionContext): Future[T] = {
-    if (n == 1) {
-      v
-    }
-    else {
-      val resFut: Future[T] = v
-      resFut.flatMap { res =>
-        if (p(res)) {
-          retryAsync(v, n - 1)(p)
-        }
-        else {
-          resFut
-        }
-      }
-    }
-  }
 }

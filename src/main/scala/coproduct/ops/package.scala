@@ -94,7 +94,7 @@ package object ops {
     // TODO: Use shapeless.syntax
     def align[Super <: Coproduct](implicit basis: Basis[Super, C]): Super = basis.inverse(Right(or))
 
-    def flatten[O<: Coproduct](implicit fl: Flatten.Aux[C, O]): O = fl(or)
+    def flatten[O<: Coproduct](implicit fl: DeepFlatten.Aux[C, O]): O = fl(or)
 
     //extract the value from this coproduct as the least uper bound of all types
     def lub[O](implicit get: Selector[C, O]): O = get(or).ensuring(_.isDefined).get
@@ -108,7 +108,7 @@ package object ops {
     def remove[T](implicit remove: Remove[C, T]): Option[remove.Rest] = remove(or).fold(_ => None, Some(_))
 
     class MapSyntax[S, V <: VarianceType] {
-      def apply[D](f: S => D)(implicit mapper: MapOne[C, S, D, V]): mapper.Out = mapper(or, f)
+      def apply[D](f: S => D)(implicit mapper: MonoMap[C, S, D, V]): mapper.Out = mapper(or, f)
     }
 
     //TODO: create an implementation of PolyFcuntion for and a corresponding mapAll method
@@ -117,7 +117,7 @@ package object ops {
     def mapC[S]: MapSyntax[S, Covariant] = new MapSyntax[S, Covariant]
 
     class FlatMapSyntax[S, V <: VarianceType] {
-      def apply[D](f: S => D)(implicit mapper: FlatMapper[C, S, D, V]): mapper.Out = mapper(or, f)
+      def apply[D](f: S => D)(implicit mapper: DeepFlatMapper[C, S, D, V]): mapper.Out = mapper(or, f)
     }
 
     def flatMapI[S]: FlatMapSyntax[S, Invariant] = new FlatMapSyntax[S, Invariant]

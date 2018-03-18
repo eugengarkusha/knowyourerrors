@@ -121,7 +121,7 @@ class CombinationsTest extends FunSuite with Matchers {
 
     }
 
-    val commonErrType = Flatten[Api.methodWithGenErrType +: Api.bErrType +: wrappedErr]
+    val commonErrType = DeepFlatten[Api.methodWithGenErrType +: Api.bErrType +: wrappedErr]
 
     val partiallyWrapped: FutureEitherMT[commonErrType.Out, (String, String)] = {
       for {
@@ -152,7 +152,7 @@ class CombinationsTest extends FunSuite with Matchers {
 
     val commonErr = {
       //Combining all methods errors signatures(except methodWithGenErr whose errors are partially transformed (see genErrQualified))
-       Flatten[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
+       DeepFlatten[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
     }
 
     val mt = for {
@@ -160,7 +160,7 @@ class CombinationsTest extends FunSuite with Matchers {
       b     <- Api.methodB.align[commonErr.Out]
       gen   <- Api.methodWithGenErr.mt.leftMap(_.flatMapI[GenErr](qualifyGenErr).align[commonErr.Out])
       aa    <- Api.syncMethod.futMtA[commonErr.Out]
-      ext   <- Try(ExternalApi.excThrowingMethod).wrapWith(t => UnexcpectedErr("extApi err", Some(t.right))).futMtA[commonErr.Out]
+      ext   <- Try(ExternalApi.excThrowingMethod).toEither.left.map(t => UnexcpectedErr("extApi err", Some(t.right))).futMtA[commonErr.Out]
       sel   <- Api.methodWithSimpleErrList.align[commonErr.Out]
       sumEl <- Api.methodWithSumErrList.align[commonErr.Out]
       se    <- Api.methodWithSimpleError.align[commonErr.Out]

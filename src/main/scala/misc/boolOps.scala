@@ -2,7 +2,6 @@ package misc
 
 object boolOps {
 
-  //MOVE SOMEWHERE
   trait IF[Cond, T, F] {
     type Out
     def apply(l: => T, r: => F): Out

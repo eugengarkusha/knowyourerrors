@@ -13,18 +13,18 @@ import misc.boolOps._
 final class PolyFuncBuilder[H <: HList] private[ops](h: H) {
 
   final class MapSyntax[S, V <: VarianceType] {
-    def apply[D](f: S => D): PolyFuncBuilder[Entry[S, D, V, MapOne.Aux] :: H] = {
-      val e = new Entry[S, D, V, MapOne.Aux] {
-        def apply[C, O](m: MapOne.Aux[C, S, D, O, V], c: C): O = m(c, f)
+    def apply[D](f: S => D): PolyFuncBuilder[Entry[S, D, V, MonoMap.Aux] :: H] = {
+      val e = new Entry[S, D, V, MonoMap.Aux] {
+        def apply[C, O](m: MonoMap.Aux[C, S, D, O, V], c: C): O = m(c, f)
       }
       new PolyFuncBuilder(e :: h)
     }
   }
 
   final class FlatMapSyntax[S, V <: VarianceType] {
-    def apply[D](f: S => D): PolyFuncBuilder[Entry[S, D, V, FlatMapper.Aux] :: H] = {
-      val e = new Entry[S, D, V, FlatMapper.Aux]{
-        def apply[C, O](m: FlatMapper.Aux[C, S, D, O, V], c: C): O = m(c, f)
+    def apply[D](f: S => D): PolyFuncBuilder[Entry[S, D, V, DeepFlatMapper.Aux] :: H] = {
+      val e = new Entry[S, D, V, DeepFlatMapper.Aux]{
+        def apply[C, O](m: DeepFlatMapper.Aux[C, S, D, O, V], c: C): O = m(c, f)
       }
       new PolyFuncBuilder(e :: h)
     }

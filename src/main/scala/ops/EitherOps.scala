@@ -46,21 +46,5 @@ object EitherOps {
     def right[L, R](r: R)(implicit e: ExecutionContext): FutureEitherMT[L, R] = FutureEitherMT(Future.successful(Right(r)))
   }
 
-  //rethink the scalaz ban
-  def traverseE[M[X] <: TraversableOnce[X], T, L, R](m: M[T])(f: T => Either[L, R]): Either[L, Vector[R]] = {
-    m.foldLeft[Either[L, Vector[R]]](Right(Vector.empty))((agr, next) => agr.flatMap(v => f(next).map(x => v :+ x)))
-  }
-
-  def traverseMT[M[X] <: TraversableOnce[X], T, L, R](m: M[T])(f: T => FutureEitherMT[L, R])(implicit ec: ExecutionContext): FutureEitherMT[L, Vector[R]] = {
-    m.foldLeft[FutureEitherMT[L, Vector[R]]](FutureEitherMT.right(Vector.empty))((_agr, next) =>
-      for {
-        agr <- _agr
-        nextRes <- f(next)
-      } yield agr :+ nextRes
-    )
-  }
-  def traverseMT[T, L, R](m: Option[T])(f: T => FutureEitherMT[L, R])(implicit ec: ExecutionContext): FutureEitherMT[L, Option[R]] = {
-    m.map(f(_).map(Some(_))).getOrElse(FutureEitherMT.right(Option.empty[R]))
-  }
 }
 
