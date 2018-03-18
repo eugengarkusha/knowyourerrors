@@ -3,7 +3,7 @@ package coproduct
 import coproduct.ops.MatchSyntax.{Case, ExtractSyntax}
 import coproduct.Coproduct._
 import misc.boolOps._
-import shapeless.ops.coproduct.{Basis, Prepend, Remove, Selector}
+import shapeless.ops.coproduct.{Prepend, Remove, Selector}
 import shapeless.{CNil, Coproduct, Poly1}
 
 package object ops {
@@ -129,11 +129,10 @@ package object ops {
     def mapC[S]: MapSyntax[S, Covariant] = new MapSyntax[S, Covariant]
 
     class FlatMapSyntax[S, V <: VarianceType] {
-      def apply[D, MO <: Coproduct ,O <: Coproduct, O1 <: Coproduct](f: S => D)(
+      def apply[D, MO <: Coproduct ,O <: Coproduct](f: S => D)(
         implicit m: MonoMap.Aux[C, S, D, MO, V],
-        df: FlattenAux[MO, O],
-        d: Dedup.Aux[O, O1]
-      ): O1 = d(df(m(or, f)))
+        df: FlattenAux[MO, O]
+      ): O = df(m(or, f))
     }
 
     def flatMapI[S]: FlatMapSyntax[S, Invariant] = new FlatMapSyntax[S, Invariant]

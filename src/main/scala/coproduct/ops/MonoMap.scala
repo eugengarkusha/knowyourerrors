@@ -1,8 +1,7 @@
 package coproduct.ops
 
 import coproduct.Coproduct._
-import shapeless.Coproduct
-import shapeless.{Inl, Inr}
+import shapeless.{<:!<, =:!=, CNil, Coproduct, Inl, Inr}
 
 
 // Applies a function to:
@@ -35,13 +34,18 @@ object MonoMapInvariant {
 
   type Aux[U, S, D, O] = MonoMapInvariant[U, S, D] {type Out = O}
 
-  implicit def right[L, R <: Coproduct, D]: MonoMapInvariant.Aux[L +: R, L, D, D +: R] = new MonoMapInvariant[L +: R, L, D] {
-    type Out = D +: R
-    def apply(u: L +: R, f: L => D): Out = u.eliminate(l => Inl(f(l)), r => Inr[D, R](r))
+  implicit def cnil[S, D]: MonoMapInvariant.Aux[CNil, S, D, CNil] = new MonoMapInvariant[CNil, S, D] {
+    type Out = CNil
+    def apply(u: CNil, f: S => D): Out = u
   }
 
-  implicit def recurse[L, R <: Coproduct, RO <: Coproduct, S, D]
-  (implicit map: MonoMapInvariant.Aux[R, S, D, RO]): MonoMapInvariant.Aux[L +: R, S, D, L +: RO] = new MonoMapInvariant[L +: R, S, D] {
+  implicit def right[S, T <: Coproduct, D, TM<: Coproduct](implicit m:  MonoMapInvariant.Aux[T, S, D, TM]): MonoMapInvariant.Aux[S +: T, S, D, D +: TM] = new MonoMapInvariant[S +: T, S, D] {
+    type Out = D +: TM
+    def apply(u: S +: T, f: S => D): Out = u.eliminate(l => Inl(f(l)), r => Inr(m(r, f)))
+  }
+
+  implicit def recurse[L, S, R <: Coproduct, RO <: Coproduct, D]
+  (implicit ev:L =:!=S,  map: MonoMapInvariant.Aux[R, S, D, RO]): MonoMapInvariant.Aux[L +: R, S, D, L +: RO] = new MonoMapInvariant[L +: R, S, D] {
     type Out = L +: RO
     override def apply(u: L +: R, f: (S) => D): Out = u.eliminate(Inl(_), r => Inr(map(r, f)))
   }
@@ -53,15 +57,22 @@ trait MonoMapCovariant [C, S, D] extends MonoMap[C, S, D, Covariant] {
 }
 
 object MonoMapCovariant {
+
   type Aux[U, S, D, O] = MonoMapCovariant[U, S, D] {type Out = O}
 
-  implicit def instance[C <: Coproduct, S,D, O <: Coproduct](
-    implicit extract: ExtractCovariant.Aux[C, S, O]
-  ): Aux[C, S, D, D +: O] = new MonoMapCovariant[C, S, D] {
-    type Out = D +: O
-    def apply(u: C,  f: S => D): Out = extract(u).fold(
-      l => Inr(l),
-      r => Inl(f(r))
-    )
+  implicit def cnil[S, D]: MonoMapCovariant.Aux[CNil, S, D, CNil] = new MonoMapCovariant[CNil, S, D] {
+    type Out = CNil
+    def apply(u: CNil, f: S => D): Out = u
+  }
+
+  implicit def right[S, SS <: S , T <: Coproduct, D, TM<: Coproduct](implicit m:  MonoMapCovariant.Aux[T, S, D, TM]): MonoMapCovariant.Aux[SS +: T, S, D, D +: TM] = new MonoMapCovariant[SS +: T, S, D] {
+    type Out = D +: TM
+    def apply(u: SS +: T, f: S => D): Out = u.eliminate(l => Inl(f(l)), r => Inr(m(r, f)))
+  }
+
+  implicit def recurse[L, S, R <: Coproduct, RO <: Coproduct, D]
+  (implicit ev: L <:!< S,  map: MonoMapCovariant.Aux[R, S, D, RO]): MonoMapCovariant.Aux[L +: R, S, D, L +: RO] = new MonoMapCovariant[L +: R, S, D] {
+    type Out = L +: RO
+    override def apply(u: L +: R, f: (S) => D): Out = u.eliminate(Inl(_), r => Inr(map(r, f)))
   }
 }

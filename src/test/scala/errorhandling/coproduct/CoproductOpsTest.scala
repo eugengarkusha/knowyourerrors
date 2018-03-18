@@ -65,42 +65,43 @@ class CoproductOpsTest extends WordSpec with Matchers {
     lubRes should be(X)
   }
 
-  "mapping single value(covariant)" in {
+  "covariant mapping" in {
     val v: String +: X.type :+: Y.type = Inr(Inl(X))
-    val mapped: Int :+: String = v.mapC[SuperXY](_ => 1)
-    mapped should be(Inl(1))
+    val mapped: String +: Int :+: Int = v.mapC[SuperXY](_ => 1)
+    mapped should be(Inr(Inl(1)))
   }
 
-  "mapping single value(invariat)" in {
-    val mapped: String +: Boolean :+: Short = intVal.mapI[Int](_ == 1)
+  "invariat mapping" in {
+    val v: String +: Int +: Short :+: Int = Inr(Inl(1))
+    val mapped: String +: Boolean +: Short :+: Boolean = v.mapI[Int](_ == 1)
     mapped should be(Inr(Inl(true)))
   }
 
-  "flatMapping(covariant)" in {
+  "covariant flatMapping" in {
     val v: String +: X.type :+: Y.type = Inr(Inl(X))
-    val flatmapped: String +: CNil = v.flatMapC[SuperXY](_.toString)
+    val flatmapped: String +: CNil = v.flatMapC[SuperXY](_.toString).dedup
     flatmapped should be(Inl("X"))
   }
 
-  "flatMapping(invariant)" in {
+  "invariant flatMapping" in {
     type R = String :+: Byte
     def i2R(i: Int): R = {
       if (i > 0) {12.toByte.inject[R] }
       else {"blah".inject[R] }
     }
 
-    val flatMapped: String +: Byte :+: Short = intVal.flatMapI[Int](i2R)
+    val flatMapped: String +: Byte :+: Short = intVal.flatMapI[Int](i2R).dedup
     flatMapped should be(Inr(Inl(12)))
 
     val flatMapped1: String +: Byte :+: Short = intVal.mapI[Int](i2R).flatten.dedup
     flatMapped1 should be(Inr(Inl(12)))
 
-    val flatMapped2: String +: Byte :+: Short = intVal.flatMapI[Int](v => i2R(v - 100))
+    val flatMapped2: String +: Byte :+: Short = intVal.flatMapI[Int](v => i2R(v - 100)).dedup
     flatMapped2 should be(Inl("blah"))
 
     //this behavior is  possible because flatmap is implemented as map and then flatten
     //TODO: think of disabling this behavior in flatMap, it should be supported as part of 'mapI' case
-    val flatMapped3: +:[String, +:[Short, CNil]] = intVal.flatMapI[Int](_.toString)
+    val flatMapped3: +:[String, +:[Short, CNil]] = intVal.flatMapI[Int](_.toString).dedup
     flatMapped3 should be(Inl("1"))
   }
 
