@@ -124,8 +124,6 @@ package object ops {
 
     def flatMapC[S]: FlatMapSyntax[S, Covariant] = new FlatMapSyntax[S, Covariant]
 
-    def diff[C1 <: Coproduct](implicit d: Diff[C, C1]): Option[d.Out] = d(or)
-
     def extendWith[T](implicit a: Add[C, T]): a.Out = a.extend(or)
 
     class CaseSyntax[T] {

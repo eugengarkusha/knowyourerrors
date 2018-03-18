@@ -4,6 +4,7 @@ import coproduct.Coproduct._
 import shapeless.ops.coproduct.Prepend
 import shapeless.{CNil, Coproduct}
 
+//TODO: reuse shapeless flatmap with id polyfunc(multiple times) and then dedup in syntax (dont mixt dedup in(unless it hits compilation performance(save this code before rewriting))
 // Ensures that Coproduct does not contain nested coproducts and duplicate elements
 trait DeepFlatten[C<: Coproduct] {
   type Out<: Coproduct
@@ -31,6 +32,6 @@ object DeepFlatten extends loFlatten{
 
   implicit def cnil: DeepFlatten.Aux[CNil, CNil] = new DeepFlatten[CNil]{
     override type Out = CNil
-    override def apply(c: CNil): Out = c
+    override def apply(c: CNil): Out = throw new AssertionError("got value of type CNil")
   }
 }

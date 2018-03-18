@@ -3,6 +3,7 @@ package coproduct.ops
 import shapeless.Coproduct
 
 //applies MonoMapper and then flattens the result
+// Do we need this class? just use mapper -> flattener -> deduper in syntax
 trait DeepFlatMapper[C, S, D, V] {
   type Out
 
