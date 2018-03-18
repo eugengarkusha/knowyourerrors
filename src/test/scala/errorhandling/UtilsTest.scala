@@ -6,35 +6,23 @@ import org.scalatest.WordSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 import _root_.coproduct.ops._
 import shapeless.{CNil, Inl, Inr}
 import _root_.coproduct.Coproduct._
-import _root_.ops.ops._
-import _root_.ops.EitherOps._
-import errors.GenErr
+import _root_.syntax.syntax._
+import cats.data.EitherT
+import cats.instances.future._
 import shapeless.syntax.inject._
+import utils._
 
-class ErrorHandlingOpsTest extends WordSpec with Matchers {
+
+class UtilsTest extends WordSpec with Matchers {
 
   implicit class FutureSyntax[T](f: Future[T]) {
     import scala.concurrent.duration._
     def await() = Await.result(f, 10 seconds)
   }
-  "alternatives with or" in {
-    def e1: Either[Int, String] = Left(1)
-    def e2: Either[Byte, String] = Right("ss")
-    def e3: Either[Long :+: Short, String] = Right("ss1")
 
-    val or: Either[+:[Int, +:[Byte, :+:[Long, Short]]], String] = e1.or(e2).or(e3)
-    val or1: Either[+:[Int, +:[Byte, :+:[Long, Short]]], String] = e1.or(e2.or(e3))
-    val or2: Either[+:[Long, +:[Short, +:[Int, +:[Byte, CNil]]]], String] = e3 or e1 or e2
-    or should be(Right("ss"))
-    or1 should be(or)
-    or2 should be(Right("ss1"))
-  }
 
   "alternatives with If" in {
 
@@ -102,30 +90,14 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
 
   }
 
-  "EitherOps" in {
+
+  "Eitehr syntax" in {
 
     val r = Right[Int, String]("s")
     val l = Left[Int, String](1)
 
     type common = Int +: String :+: Short
 
-    val fmt: FutureEitherMT[Int, String] = r.futMt
-    fmt.v.value shouldBe Some(Success(Right("s")))
-
-    val ensured: FutureEitherMT[+:[String, +:[Int, CNil]], String] = fmt.ensureCP("some err")(_ != "s")
-    ensured.v.await() shouldBe Left(Inl("some err"))
-
-    val ensured1: FutureEitherMT[Int, String] = fmt.ensure(2)(_ != "s")
-    ensured1.v.await() shouldBe Left(2)
-
-    val ensured2: FutureEitherMT[String, Unit] = ensure("some err")(false)
-    ensured2.v.await() shouldBe Left("some err")
-
-    val fmta: FutureEitherMT[common, String] = r.futMtA[common]
-    fmta.v.value shouldBe Some(Success(Right("s")))
-
-    val fmtaL: FutureEitherMT[common, String] = l.futMtA[common]
-    fmtaL.v.value shouldBe Some(Success(Left(Inl(1))))
 
     val embedded: Either[common, String] = r.embed[common]
     embedded shouldBe Right("s")
@@ -170,36 +142,46 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
 
     val resNoDup: Either[String +: Unit :+: Long, Symbol] = joinedWithDuplicates.left.map(_.dedup)
     resNoDup shouldBe(Left(Inr(Inr(Inl(1L)))))
+
+    val ensured: Either[String :+: Int, String] = r.ensureCP("fail")(_ != "s")
+    ensured should be (Left(Inl("fail")))
+
+    def e1: Either[Int, String] = Left(1)
+    def e2: Either[Byte, String] = Right("ss")
+    def e3: Either[Long :+: Short, String] = Right("ss1")
+
+    val or: Either[+:[Int, +:[Byte, :+:[Long, Short]]], String] = e1.or(e2).or(e3)
+    val or1: Either[+:[Int, +:[Byte, :+:[Long, Short]]], String] = e1.or(e2.or(e3))
+    val or2: Either[+:[Long, +:[Short, +:[Int, +:[Byte, CNil]]]], String] = e3 or e1 or e2
+    or should be(Right("ss"))
+    or1 should be(or)
+    or2 should be(Right("ss1"))
   }
 
-  "future ops" in {
-    val f = Future.successful(1)
+  "EitherTSyntax" in {
 
-    val right: FutureEitherMT[Nothing, Int] = f.toRight
-    right.v.await() shouldBe Right(1)
 
-    val left: FutureEitherMT[Int, Nothing] = f.toLeft
-    left.v.await()  shouldBe Left(1)
+    type ETV[E, V] = EitherT[Future, E, V]
+    type ET[E] = EitherT[Future, E, String]
+
+    val fmt: ET[Int] = EitherT.liftF(Future.successful("s"))
+    val fmtErr: ET[Int] = EitherT.fromEither(Left(400))
+
+    val ensured: ET[String :+: Int] = fmt.ensureCP("some err")(_ != "s")
+    ensured.value.await() shouldBe Left(Inl("some err"))
+
+    val embedded: ET[Int :+: String] = fmtErr.embed[Int :+: String]
+    embedded.value.await() shouldBe Left(Inl(400))
+
+    val handled: Future[String] = embedded.handle(
+      _._case[Int]("Recovered:"+_)
+        ._case[String]("Recovered:"+_)
+    )
+    handled.await() shouldBe ("Recovered:400")
+
+    val partHandled: ET[Int] = embedded.partiallyHandle(_._case[String]("Recovered:"+_))
+    partHandled.value.await() shouldBe(Left(400))
+
   }
-
-  "any ops" in {
-
-    val i = 1
-
-    """i.injectTo[String :+: Boolean]""" shouldNot typeCheck
-
-    val added: Int +: String :+: Boolean = i.addTo[String :+: Boolean]
-    added shouldBe Inl(1)
-
-    val left: Either[Int, Byte] = i.left[Byte]
-    left shouldBe Left(1)
-
-    val right: Either[Byte, Int] = i.right[Byte]
-    right shouldBe Right(1)
-
-  }
-
-
-  //TODO: cover other operations
 
 }

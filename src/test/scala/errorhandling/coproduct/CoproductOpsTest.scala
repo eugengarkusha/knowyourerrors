@@ -5,8 +5,10 @@ import org.scalatest.Matchers
 import org.scalatest.WordSpec
 import coproduct.Coproduct._
 import coproduct.ops._
+import errors._
 import shapeless.{CNil, Inl, Inr}
 import shapeless.syntax.inject._
+import utils._
 
 
 class CoproductOpsTest extends WordSpec with Matchers {
@@ -135,7 +137,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
     val process1: String = {
       Err1.inject[Err1.type +: Err2.type :+: Err3.type]
-        ._case[Err1.type].apply(_.toString)
+        ._case[Err1.type](_.toString)
         ._case[Err3.type](_.toString)
         ._case[Err2.type](_.toString)
     }
@@ -144,7 +146,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
     val process2: String = {
       Err2.inject[Err1.type +: Err2.type :+: Err3.type]
-        ._case[Err1.type].apply(_.toString)
+        ._case[Err1.type](_.toString)
         ._caseAll[Err](_.toString)
     }
 
@@ -153,7 +155,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
     val wrapExceptionOnly: Err2.type :+: Err3.type = {
       Err2.inject[Err1.type +: Err2.type :+: Err3.type]
         //Return type is stated explicitly because of the known inference problem
-        ._case[Err1.type].apply(_ => (throw new RuntimeException("")): Int)
+        ._case[Err1.type](_ => (throw new RuntimeException("")): Int)
         .suspend.left.get
     }
 
@@ -165,5 +167,36 @@ class CoproductOpsTest extends WordSpec with Matchers {
       ._case[Err2.type](_.toString)
     }""" shouldNot typeCheck
 
+  }
+
+  "caseAll, caseOthers, suspend" in {
+
+    trait ServiceErr extends NoCauseError
+    case class IOErr(msg: String) extends ServiceErr
+    trait TimeOut extends ServiceErr
+
+    type commonSuper = ValidationErr +: IOErr :+: TimeOut
+
+    ValidationErr("err", null).inject[commonSuper]
+      ._caseAll[GenError](_.toString) should be("ValidationErr(err,null)")
+
+
+    val partiallyHandled: Either[ValidationErr, String] ={
+      ValidationErr("err", null).inject[commonSuper]
+        ._caseAll[ServiceErr](_.toString)
+        .suspend
+    }
+    partiallyHandled should be(Left(ValidationErr("err", null)))
+
+    val err: commonSuper = IOErr("boom").inject[commonSuper]
+
+    val r2: String = err._case[IOErr](_.toString)._caseAll[GenError](_.toString)
+    r2 should be ("IOErr(boom)")
+
+    val r3: Either[ValidationErr :+: IOErr, String] = err._case[TimeOut](_.toString).suspend
+    r3 should be (Left(Inr(Inl(IOErr("boom")))))
+
+    val r4: Either[ValidationErr :+: TimeOut, String] = err._case[IOErr]("Recovered:" + _).suspend
+    r4 should be (Right("Recovered:IOErr(boom)"))
   }
 }

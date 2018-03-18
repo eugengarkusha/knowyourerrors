@@ -48,7 +48,7 @@ object Add extends prepend {
 
   class AddSyntax[V](a: V) {
     //disallowing empty coproducts. Use Coproduct.empty to create empty one
-    def to[C <: Coproduct](implicit i: Add[C, V], ev: V <:!< CNil): i.Out = i.apply(a)
+    def to[C <: Coproduct](implicit i: Add[C, V], ev: V <:!< CNil): i.Out = i(a)
   }
 
   def apply[V](a: V): AddSyntax[V] = new AddSyntax(a)

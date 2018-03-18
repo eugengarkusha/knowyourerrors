@@ -10,14 +10,13 @@ import errors.GenErr
 object Api {
 
   //errors definitions:
-  //TODO: create a suitable classes/traits to facilitate creation of errors having cause chain
   type Err1 = String
   type Err2 = Int
   type Err3 = Short
   type Err4 = Double
   type Err5 = Byte
 
-  //different functions returing err+:s:
+  //different functions returing errs:
   type aErrType = Err1 +: Err2 :+: Err3
   def methodA: Future[Either[aErrType, String]] = Future.successful(Left(404.inject[aErrType]))
 
@@ -46,5 +45,5 @@ object Api {
   def noErrorAsyncMethod1: Future[Option[String]] = Future.successful(Some("c"))
   def noErrorAsyncMethod2: Future[String] = Future.successful("d")
 
-  def noErrorMethod: Int = 1
+  def pureFunction: Int = 1
 }

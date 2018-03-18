@@ -19,7 +19,6 @@ object boolOps {
       type Out = T
       def apply(l: => T, r: => F): Out = l
     }
-
   }
 
 }

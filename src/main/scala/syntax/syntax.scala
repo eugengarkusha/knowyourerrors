@@ -1,11 +1,10 @@
-package ops
+package syntax
 
 import coproduct.ops.{LiftCp, MatchSyntax}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
-import EitherOps.FutureEitherMT
 import coproduct.Coproduct._
 import coproduct._
 import shapeless.{<:!<,=:!=, HList, CNil, Coproduct}
@@ -13,11 +12,13 @@ import shapeless.ops.coproduct.{Inject, Basis, Prepend}
 import misc.boolOps._
 import coproduct.ops._
 import cats.syntax.either._
+import cats.syntax.functor._
+import cats.data.EitherT
+import cats.Functor
 import errors._
 
 
-
-object ops {
+package object syntax {
 
   trait Embed[Err, Super <: Coproduct] extends (Err => Super)
   object Embed{
@@ -25,63 +26,34 @@ object ops {
       v => e.inverse(Right(lcp(v)))
   }
 
+  implicit class EitherTSyntax[M[_]: Functor,Err, Result](t: EitherT[M, Err, Result]) {
 
-  //TODO: put executionContext to methods signatures and extend AnyVal
-  implicit class FutureEitherOps[Err, Result](t: Future[Either[Err, Result]])(implicit ec: ExecutionContext) {
+    def embed[E <: Coproduct](implicit c: Embed[Err, E]): EitherT[M, E, Result] = t.leftMap(c)
 
-    def mt: FutureEitherMT[Err, Result] = FutureEitherMT(t)
-    def embed[E <: Coproduct](implicit c: Embed[Err, E]): FutureEitherMT[E, Result] = mt.leftMap(c)
-    def partiallyHandle[L, R <: Coproduct, O, RR >: Result](f: Err => MatchSyntax.Case[L +: R, Result])(
-      implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
-    ): FutureEitherMT[O, RR] = {
-      FutureEitherMT(t.map(_.partiallyHandle(f)))
-    }
-    def handle[RR >: Result](f: Err => RR): Future[RR] = mt.getOrElse(f)
-
-  }
-
-  //TODO: put executionContext to methods signatures and extend AnyVal!!!
-  implicit class FutureEitherMTOps[Err, Result](t: FutureEitherMT[Err, Result])(implicit ec: ExecutionContext) {
-    def embed[E <: Coproduct](implicit c: Embed[Err, E]): FutureEitherMT[E, Result] = t.leftMap(c)
     def partiallyHandle[L, R <: Coproduct, O, RR >: Result](f: Err => MatchSyntax.Case[L +: R, RR])(
       implicit _if: IF.Aux[R =:= CNil, L, L +: R, O]
-    ): FutureEitherMT[O, RR] = {
-      FutureEitherMT(t.v.map(_.partiallyHandle(f)))
+    ): EitherT[M, O, RR] = {
+      EitherT(t.value.map(_.partiallyHandle(f)))
     }
-    def handle[RR >: Result](f: Err => RR): Future[RR] = t.getOrElse(f)
+    def handle[RR >: Result](f: Err => RR): M[RR] = t.valueOr(f)
 
     def ensureCP[E, LL<: Coproduct, EE](err: Result => E)(cond: Result => Boolean)(
       implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]
-    ): FutureEitherMT[EE, Result] = {
-      t.copy(t.v.map(_.ensureCP[E, LL, EE](err)(cond)(liftCp, add)))
+    ): EitherT[M, EE, Result] = {
+      EitherT(t.value.map(_.ensureCP[E, LL, EE](err)(cond)(liftCp, add)))
     }
 
     def ensureCP[E, LL<: Coproduct, EE](err: => E)(cond: Result => Boolean)(
       implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]
-    ): FutureEitherMT[EE, Result] = {
+    ): EitherT[M, EE, Result] = {
       ensureCP[E, LL, EE]((_: Result) => err)(cond)(liftCp, add)
     }
 
   }
 
-  //TODO: put executionContext to methods signatures and extend AnyVal
-  implicit class FutureOps1[T](t: Future[T])(implicit ec: ExecutionContext) {
-    def mt[L, R](l: Throwable => L, r: T => R ): FutureEitherMT[L, R] = {
-      FutureEitherMT(t.map(v => Right(r(v))).recover{case NonFatal(t) => Left(l(t))})
-    }
-    def toRight[L]: FutureEitherMT[L, T] = FutureEitherMT(t.map(Right(_)))
-    def toLeft[R]: FutureEitherMT[T, R] = FutureEitherMT(t.map(Left(_)))
-  }
-
 
   // Err must be inferred
-  implicit class EitherOps[Err, Res](e: Either[Err, Res])(implicit ev: Err =:!= Nothing) {
-
-    def futMt(implicit ec: ExecutionContext): FutureEitherMT[Err, Res] = FutureEitherMT(Future.successful(e))
-
-    def futMtA[E<: Coproduct](implicit c: Embed[Err, E], ec: ExecutionContext): FutureEitherMT[E, Res] = {
-      FutureEitherMT(Future.successful(e.left.map(c)))
-    }
+  implicit class EitherSyntax[Err, Res](e: Either[Err, Res])(implicit ev: Err =:!= Nothing) {
 
     def embed[E<: Coproduct](implicit c: Embed[Err, E]): Either[E, Res] = e.left.map(c)
 
@@ -126,26 +98,7 @@ object ops {
       }
     }
 
-
     def hasError[E](implicit extract: Extract[Err, E, Invariant]): Boolean = e.isLeft && extract(e.left.get).isRight
 
   }
-
-  implicit class AnyOps[T](t: T)(implicit ev: T <:!< CNil) {
-    def addTo[C](implicit m: Add[C, T]): m.Out = m.apply(t)
-    def left[R]: Either[T, R] = Left(t)
-    def right[L]: Either[L, T] = Right(t)
-  }
-
-  //for non-future contexts use Either.cond(cond, (), err)
-  def ensure[E](err: => E)(cond: Boolean)(implicit e: ExecutionContext): FutureEitherMT[E, Unit] = {
-    if(cond) FutureEitherMT.right(()) else FutureEitherMT.left(err)
-  }
-
-
-  //workaround for scalas strange bahaviour.Cannot throw exception from _case[T], compiler cannot find IF instance if Res type == Nothing
-  def _throw[T <: Throwable](t: T): Null = throw t
-
-
-
 }
