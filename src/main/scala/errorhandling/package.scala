@@ -1,10 +1,10 @@
-import coproduct.Coproduct.+:
-import coproduct.ops.{Covariant, Dedup, Extract, FlattenAux, Invariant, LiftCp, VarianceType}
-import misc.boolOps.IF
-import shapeless.{CNil, Coproduct}
+package errorhandling
+
+import errorhandling.coproduct.ops.{Dedup, FlattenAux, LiftCp}
+import shapeless.Coproduct
 import shapeless.ops.coproduct.Prepend
 
-package object utils {
+object utils {
 
   trait FlattenDedupType[C <: Coproduct] {
     type Out <: Coproduct

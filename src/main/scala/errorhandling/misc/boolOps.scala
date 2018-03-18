@@ -1,4 +1,4 @@
-package misc
+package errorhandling.misc
 
 object boolOps {
 

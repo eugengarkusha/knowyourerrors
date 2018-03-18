@@ -1,11 +1,9 @@
-package errorhandling.apidesigndemo
+package errorhandling.testApi
 
 import scala.concurrent.Future
-
-import _root_.coproduct.ops._
-import _root_.coproduct.Coproduct._
+import errorhandling.coproduct.Coproduct._
 import shapeless.syntax.inject._
-import errors.GenErr
+import errorhandling.errors.GenErr
 
 object Api {
 

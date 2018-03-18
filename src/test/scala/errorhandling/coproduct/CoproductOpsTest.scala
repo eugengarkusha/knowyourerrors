@@ -1,14 +1,14 @@
 package errorhandling.coproduct
 
-import coproduct.ops.Add
+import errorhandling.coproduct.ops.Add
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import coproduct.Coproduct._
-import coproduct.ops._
-import errors._
+import Coproduct._
+import ops._
+import errorhandling.errors._
 import shapeless.{CNil, Inl, Inr}
 import shapeless.syntax.inject._
-import utils._
+import errorhandling.utils._
 
 
 class CoproductOpsTest extends WordSpec with Matchers {

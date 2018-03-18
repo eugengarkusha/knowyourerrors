@@ -6,10 +6,10 @@ import org.scalatest.WordSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
-import _root_.coproduct.ops._
+import errorhandling.coproduct.ops._
 import shapeless.{CNil, Inl, Inr}
-import _root_.coproduct.Coproduct._
-import _root_.syntax.syntax._
+import errorhandling.coproduct.Coproduct._
+import syntax._
 import cats.data.EitherT
 import cats.instances.future._
 import shapeless.syntax.inject._

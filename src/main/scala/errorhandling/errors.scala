@@ -1,7 +1,10 @@
-import org.apache.commons.lang3.exception.ExceptionUtils
+package errorhandling
+
 import cats.syntax.either._
 
-package object errors {
+import org.apache.commons.lang3.exception.ExceptionUtils
+
+object errors {
 
   type Cause = Option[Either[GenError, Throwable]]
 

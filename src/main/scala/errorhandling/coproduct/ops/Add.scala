@@ -1,6 +1,6 @@
-package coproduct.ops
+package errorhandling.coproduct.ops
 
-import coproduct.Coproduct._
+import errorhandling.coproduct.Coproduct._
 import shapeless.{<:!<, Coproduct, CNil, Inl, Inr}
 
 ////Adds a value in coproduct. Used for addtiton of a new element and injecting existing elements and extending coproduct on type-level

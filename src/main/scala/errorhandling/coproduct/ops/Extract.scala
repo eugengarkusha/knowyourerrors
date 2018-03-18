@@ -1,6 +1,6 @@
-package coproduct.ops
+package errorhandling.coproduct.ops
 
-import coproduct.Coproduct._
+import errorhandling.coproduct.Coproduct._
 import shapeless.ops.coproduct.Remove
 import shapeless.{<:!<, CNil, Coproduct, Inl, Inr}
 

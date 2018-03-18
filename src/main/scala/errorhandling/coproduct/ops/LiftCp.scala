@@ -1,6 +1,6 @@
-package coproduct.ops
+package errorhandling.coproduct.ops
 
-import coproduct.Coproduct._
+import errorhandling.coproduct.Coproduct._
 import shapeless.{Coproduct, Inl, <:!<, CNil}
 //Lifts T to Coproduct (if T is coproduct than just return T else return T :+ Cnil)
 trait LiftCp[T] {

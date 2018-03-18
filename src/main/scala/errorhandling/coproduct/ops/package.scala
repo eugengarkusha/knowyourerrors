@@ -1,9 +1,8 @@
-package coproduct
+package errorhandling.coproduct
 
-import coproduct.Coproduct._
-import coproduct.ops.MatchSyntax
-import misc.boolOps._
-import shapeless.ops.coproduct.{Prepend, Remove, Selector}
+import errorhandling.coproduct.Coproduct._
+import errorhandling.misc.boolOps._
+import shapeless.ops.coproduct.{Remove, Selector}
 import shapeless.{CNil, Coproduct, Poly1}
 import ops.MatchSyntax._
 

@@ -1,6 +1,6 @@
-package coproduct.ops
+package errorhandling.coproduct.ops
 
-import coproduct.Coproduct._
+import errorhandling.coproduct.Coproduct._
 import shapeless.{Coproduct, CNil}
 
 //Deduplicates coproduct types. For internal use only(it should not be reasonable co construct coproduct with duplicates)

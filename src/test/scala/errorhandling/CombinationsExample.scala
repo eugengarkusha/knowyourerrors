@@ -1,27 +1,24 @@
-package errorhandling.coproduct
+package errorhandling
 
 import java.io.FileNotFoundException
 
-import org.scalatest.FunSuite
-import org.scalatest.Matchers
-import shapeless.{CNil, Inl, Inr}
-
-import scala.concurrent.{Await, Future}
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import errorhandling.apidesigndemo.Api
-import errorhandling.apidesigndemo.ExternalApi
-import errorhandling.apidesigndemo.Api._
-import _root_.coproduct.Coproduct._
-import _root_.coproduct.ops._
-import _root_.syntax.syntax._
 import cats.data.EitherT
 import cats.data.EitherT._
 import cats.instances.future._
-import errors.{Cause, GenErr, GenError}
+import errorhandling.coproduct.Coproduct._
+import errorhandling.coproduct.ops._
+import syntax._
+import errorhandling.testApi.Api._
+import errorhandling.testApi.{Api, JavaApi}
+import errors._
+import errorhandling.utils.flattenDedupType
+import org.scalatest.{FunSuite, Matchers}
 import shapeless.syntax.inject._
-import utils._
+import shapeless.{Inl, Inr}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.Try
 
 class CombinationsExample extends FunSuite with Matchers {
@@ -132,7 +129,7 @@ class CombinationsExample extends FunSuite with Matchers {
       b     <-  EitherT(Api.methodB).embed[commonErr.Out]
       gen   <-  EitherT(Api.methodWithGenErr).leftMap(_.flatMapI[GenErr](resolveGenErr).embed[commonErr.Out])
       aa    <-  EitherT.fromEither(Api.syncMethod.embed[commonErr.Out])
-      ext   <-  EitherT.fromEither(Try(ExternalApi.excThrowingMethod).toEither.left.map(t => UnexcpectedErr("extApi err", Some(Right(t)))).embed[commonErr.Out])
+      ext   <-  EitherT.fromEither(Try(JavaApi.excThrowingMethod).toEither.left.map(t => UnexcpectedErr("extApi err", Some(Right(t)))).embed[commonErr.Out])
       sel   <-  EitherT(Api.methodWithSimpleErrList).embed[commonErr.Out]
       sumEl <-  EitherT(Api.methodWithSumErrList).embed[commonErr.Out]
       se    <-  EitherT(Api.methodWithSimpleError).embed[commonErr.Out]

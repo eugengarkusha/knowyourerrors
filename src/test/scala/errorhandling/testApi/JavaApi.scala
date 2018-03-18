@@ -1,6 +1,6 @@
-package errorhandling.apidesigndemo
+package errorhandling.testApi
 
-object ExternalApi {
+object JavaApi {
 
   def excThrowingMethod: Int = throw new Exception("")
 

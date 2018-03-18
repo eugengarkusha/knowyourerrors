@@ -1,23 +1,16 @@
-package syntax
+package errorhandling
 
-import coproduct.ops.{LiftCp, MatchSyntax}
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
-import scala.util.control.NonFatal
-import coproduct.Coproduct._
-import coproduct._
-import shapeless.{<:!<, =:!=, HList, CNil, Coproduct}
-import shapeless.ops.coproduct.{Inject, Basis, Prepend}
-import misc.boolOps._
-import coproduct.ops._
+import cats.Functor
+import cats.data.EitherT
 import cats.syntax.either._
 import cats.syntax.functor._
-import cats.data.EitherT
-import cats.Functor
-import errors._
+import errorhandling.coproduct.Coproduct._
+import errorhandling.coproduct.ops.{LiftCp, MatchSyntax, _}
+import errorhandling.misc.boolOps._
+import shapeless.ops.coproduct.{Basis, Prepend}
+import shapeless.{=:!=, CNil, Coproduct}
 
-package object syntax {
+object syntax {
 
   trait Embed[Err, Super <: Coproduct] extends (Err => Super)
   object Embed {
