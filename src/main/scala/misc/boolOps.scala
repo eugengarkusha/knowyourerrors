@@ -13,7 +13,7 @@ object boolOps {
     }
   }
   object IF extends lo {
-    type Aux[C, T, F, O] = IF[C, T, F] {type Out = O}
+    type Aux[C, T, F, O] = IF[C, T, F] { type Out = O }
 
     implicit def _true[C, T, F](implicit c: C): IF.Aux[C, T, F, T] = new IF[C, T, F] {
       type Out = T

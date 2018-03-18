@@ -24,27 +24,26 @@ trait prepend {
 }
 
 object Add extends prepend {
-  type Aux [C, V, O] = Add[C, V]{type Out = O}
+  type Aux[C, V, O] = Add[C, V] { type Out = O }
 
-  implicit def cnil: Add.Aux[CNil, CNil,  CNil] = new Add[CNil, CNil]{
+  implicit def cnil: Add.Aux[CNil, CNil, CNil] = new Add[CNil, CNil] {
     override type Out = CNil
     override def apply(v: CNil): Out = v
     override def extend(u: CNil): Out = u
   }
 
-  implicit def injectL[V, R <: Coproduct]: Add.Aux[V +: R, V, V +: R] = new Add[V +: R, V]{
+  implicit def injectL[V, R <: Coproduct]: Add.Aux[V +: R, V, V +: R] = new Add[V +: R, V] {
     override type Out = V +: R
     override def apply(v: V): Out = Inl[V, R](v)
     override def extend(u: V +: R): Out = u
   }
 
-  implicit def injectR[L, R <: Coproduct, V](implicit add: Add.Aux[R, V, R]): Add.Aux[L +: R, V, L +: R] = new Add[L +: R, V] {
-    override type Out = L +: R
-    override def apply(a: V): Out = Inr[L, R](add(a))
-    override def extend(u: L +: R): Out = u.map(add.extend(_))
-  }
-
-
+  implicit def injectR[L, R <: Coproduct, V](implicit add: Add.Aux[R, V, R]): Add.Aux[L +: R, V, L +: R] =
+    new Add[L +: R, V] {
+      override type Out = L +: R
+      override def apply(a: V): Out = Inr[L, R](add(a))
+      override def extend(u: L +: R): Out = u.map(add.extend(_))
+    }
 
   class AddSyntax[V](a: V) {
     //disallowing empty coproducts. Use Coproduct.empty to create empty one
@@ -53,4 +52,3 @@ object Add extends prepend {
 
   def apply[V](a: V): AddSyntax[V] = new AddSyntax(a)
 }
-

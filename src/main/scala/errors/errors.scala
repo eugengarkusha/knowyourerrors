@@ -24,7 +24,8 @@ package object errors {
       val className = getClass.getCanonicalName
       val _msg = s"$className($msg)"
       //scalastyle:off
-      val e = cause.fold(new Throwable(_msg, null))(throwableOrErr => new Throwable(_msg, throwableOrErr.valueOr(_.toThrowable)))
+      val e = cause.fold(new Throwable(_msg, null))(throwableOrErr =>
+        new Throwable(_msg, throwableOrErr.valueOr(_.toThrowable)))
       //scalastyle:on
       e.setStackTrace(_stackTrace)
       e
@@ -36,7 +37,7 @@ package object errors {
     implicit def throwableToCause(e: Throwable): Cause = Some(Right(e))
   }
 
-  trait NoCauseError extends GenError {def cause: Cause = None}
+  trait NoCauseError extends GenError { def cause: Cause = None }
 
   case class GenErr(msg: String, cause: Cause) extends GenError
 
