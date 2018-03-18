@@ -38,8 +38,6 @@ object ops {
     }
     def handle[RR >: Result](f: Err => RR): Future[RR] = mt.getOrElse(f)
 
-    //applies polyfunction to left side (errors)
-    def adapt[F <: HList, O](f: => PolyFunc[F])(implicit m: UniformPolyMap.Aux[Err, F, O]): FutureEitherMT[O, Result] = mt.leftMap(f(_))
   }
 
   //TODO: put executionContext to methods signatures and extend AnyVal!!!
@@ -51,8 +49,6 @@ object ops {
       FutureEitherMT(t.v.map(_.partiallyHandle(f)))
     }
     def handle[RR >: Result](f: Err => RR): Future[RR] = t.getOrElse(f)
-
-    def adapt[F <: HList, O](f: => PolyFunc[F])(implicit m: UniformPolyMap.Aux[Err, F, O]): FutureEitherMT[O, Result] = t.leftMap(f(_))
 
     def ensureCP[E, LL<: Coproduct, EE](err: Result => E)(cond: Result => Boolean)(
       implicit liftCp: LiftCp.Aux[Err, LL], add: Add.Aux[LL, E, EE]

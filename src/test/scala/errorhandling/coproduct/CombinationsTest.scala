@@ -22,6 +22,7 @@ import shapeless.ops.coproduct.Remove
 
 import scala.util.Try
 
+//TODO: add exa ple of errs adaption with shapeless polymap
 class CombinationsTest extends FunSuite with Matchers {
 
 
