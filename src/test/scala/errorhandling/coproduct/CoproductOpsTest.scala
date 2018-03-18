@@ -5,6 +5,7 @@ import org.scalatest.Matchers
 import org.scalatest.WordSpec
 import coproduct.Coproduct._
 import coproduct.ops._
+import errorhandling.FlattenDedup
 import shapeless.{CNil, Inl, Inr}
 import shapeless.syntax.inject._
 
@@ -100,7 +101,7 @@ class CoproductOpsTest extends WordSpec with Matchers {
     val flatMapped: String +: Byte :+: Short = intVal.flatMapI[Int](i2R)
     flatMapped should be(Inr(Inl(12)))
 
-    val flatMapped1: String +: Byte :+: Short = intVal.mapI[Int](i2R).flatten
+    val flatMapped1: String +: Byte :+: Short = intVal.mapI[Int](i2R).flatten.dedup
     flatMapped1 should be(Inr(Inl(12)))
 
     val flatMapped2: String +: Byte :+: Short = intVal.flatMapI[Int](v => i2R(v - 100))
@@ -117,10 +118,10 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
     val nested = Add(1).to[(Byte :+: Int :+: Int) +: String +: Int :+: (Short :+: Int)]
 
-    val flattened: Byte +: String +: Short :+: Int = nested.flatten
+    val flattened: Byte +: String +: Short :+: Int = nested.flatten.dedup
     flattened should be(Inr(Inr(Inr(Inl(1)))))
 
-    val ft = DeepFlatten[(Byte +: Int :+:(Int:+:String)) +: String +: Int :+: (Short :+: Int) :+: Double]
+    val ft = FlattenDedup[(Byte +: Int :+:(Int:+:String)) +: String +: Int :+: (Short :+: Int) :+: Double]
     (1.inject[ft.Out]: Byte +: String +: Short +: Int :+: Double) should be(Inr(Inr(Inr(Inl(1)))))
   }
 

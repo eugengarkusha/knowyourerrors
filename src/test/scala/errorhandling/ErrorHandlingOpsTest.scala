@@ -9,13 +9,12 @@ import scala.concurrent.{Await, Future}
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import shapeless.{CNil, Inl, Inr}
 import _root_.coproduct.ops._
+import shapeless.{CNil, Inl, Inr}
 import _root_.coproduct.Coproduct._
 import _root_.ops.ops._
 import _root_.ops.EitherOps._
 import errors.GenErr
-import shapeless.ops.coproduct.Inject
 import shapeless.syntax.inject._
 
 class ErrorHandlingOpsTest extends WordSpec with Matchers {
@@ -169,7 +168,7 @@ class ErrorHandlingOpsTest extends WordSpec with Matchers {
     val joinedWithDuplicates: Either[Long +: String +: Unit :+: Long, Symbol] = tobeJoinedWithDuplicates.joinCP
     joinedWithDuplicates shouldBe (Left(Inl(1)))
 
-    val resNoDup: Either[String +: Unit :+: Long, Symbol] = joinedWithDuplicates.left.map(_.flatten)
+    val resNoDup: Either[String +: Unit :+: Long, Symbol] = joinedWithDuplicates.left.map(_.dedup)
     resNoDup shouldBe(Left(Inr(Inr(Inl(1L)))))
   }
 

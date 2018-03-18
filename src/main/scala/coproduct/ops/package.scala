@@ -86,6 +86,7 @@ package object ops {
 
   }
 
+
   //ops for non-empty coproducts(L +: R)
   implicit class CoproductOps[L, R <: Coproduct](or: L +: R) {
 
@@ -94,7 +95,9 @@ package object ops {
     // TODO: Use shapeless.syntax
     def align[Super <: Coproduct](implicit basis: Basis[Super, C]): Super = basis.inverse(Right(or))
 
-    def flatten[O<: Coproduct](implicit fl: DeepFlatten.Aux[C, O]): O = fl(or)
+    def flatten(implicit fl: DeepFlatten[C]): fl.Out = fl(or)
+
+    def dedup(implicit dd: Dedup[C]): dd.Out = dd(or)
 
     //extract the value from this coproduct as the least uper bound of all types
     def lub[O](implicit get: Selector[C, O]): O = get(or).ensuring(_.isDefined).get
@@ -117,7 +120,11 @@ package object ops {
     def mapC[S]: MapSyntax[S, Covariant] = new MapSyntax[S, Covariant]
 
     class FlatMapSyntax[S, V <: VarianceType] {
-      def apply[D](f: S => D)(implicit mapper: DeepFlatMapper[C, S, D, V]): mapper.Out = mapper(or, f)
+      def apply[D, MO <: Coproduct ,O <: Coproduct, O1 <: Coproduct](f: S => D)(
+        implicit m: MonoMap.Aux[C, S, D, MO, V],
+        df: DeepFlatten.Aux[MO, O],
+        d: Dedup.Aux[O, O1]
+      ): O1 = d(df(m(or, f)))
     }
 
     def flatMapI[S]: FlatMapSyntax[S, Invariant] = new FlatMapSyntax[S, Invariant]

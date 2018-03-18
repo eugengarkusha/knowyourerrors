@@ -4,7 +4,8 @@ import java.io.FileNotFoundException
 
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
-import shapeless.{Inl, Inr, CNil}
+import shapeless.{CNil, Inl, Inr}
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -15,10 +16,10 @@ import _root_.coproduct.Coproduct._
 import _root_.coproduct.ops._
 import _root_.ops.ops._
 import _root_.ops.EitherOps._
+import errorhandling.FlattenDedup
 import errors.{Cause, GenErr, GenError}
 import shapeless.syntax.inject._
 import shapeless.ops.coproduct.Remove
-
 
 import scala.util.Try
 
@@ -122,7 +123,9 @@ class CombinationsTest extends FunSuite with Matchers {
 
     }
 
-    val commonErrType = DeepFlatten[Api.methodWithGenErrType +: Api.bErrType +: wrappedErr]
+    val commonErrType1 = DeepFlatten[Api.methodWithGenErrType +: Api.bErrType +: wrappedErr]
+
+    val commonErrType = Dedup[commonErrType1.Out]
 
     val partiallyWrapped: FutureEitherMT[commonErrType.Out, (String, String)] = {
       for {
@@ -153,7 +156,7 @@ class CombinationsTest extends FunSuite with Matchers {
 
     val commonErr = {
       //Combining all methods errors signatures(except methodWithGenErr whose errors are partially transformed (see genErrQualified))
-       DeepFlatten[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
+      FlattenDedup[genErrQualified +: Api.aErrType +: Api.bErrType +: Api.sumErrListType +: Api.simpleErrListType :+: Api.simpleErrorType]
     }
 
     val mt = for {
