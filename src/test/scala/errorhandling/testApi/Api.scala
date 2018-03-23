@@ -3,16 +3,17 @@ package errorhandling.testApi
 import scala.concurrent.Future
 import errorhandling.coproduct.Coproduct._
 import shapeless.syntax.inject._
-import errorhandling.errors.GenErr
 
 object Api {
 
   //errors definitions:
+  case class Err(msg: String, cause: Exception)
   type Err1 = String
   type Err2 = Int
   type Err3 = Short
   type Err4 = Double
   type Err5 = Byte
+
 
   //different functions returing errs:
   type aErrType = Err1 +: Err2 :+: Err3
@@ -36,7 +37,7 @@ object Api {
   type sumErrListType = List[Err2 :+: Err1]
   def methodWithSumErrList: Future[Either[sumErrListType, String]] = Future.successful(Left(List(200.inject[Err2 :+: Err1])))
 
-  type methodWithGenErrType = Err1 :+: GenErr
+  type methodWithGenErrType = Err1 :+: Err
   def methodWithGenErr: Future[Either[methodWithGenErrType, String]] = Future.successful(Right("noerr"))
 
   //no-err guys:

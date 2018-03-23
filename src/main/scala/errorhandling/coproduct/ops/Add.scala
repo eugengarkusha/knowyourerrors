@@ -3,7 +3,6 @@ package errorhandling.coproduct.ops
 import errorhandling.coproduct.Coproduct._
 import shapeless.{<:!<, Coproduct, CNil, Inl, Inr}
 
-
 //first tries to inject an element (injectR method) and if element does not exist in coproduct it prepends the element
 
 trait Add[C, V] {
@@ -39,7 +38,7 @@ object Add extends prepend {
     new Add[L +: R, V] {
       override type Out = L +: R
       override def apply(a: V): Out = Inr[L, R](add(a))
-      override def extend(u: L +: R): Out = u  match {
+      override def extend(u: L +: R): Out = u match {
         case cl: Inl[L, R] => cl
         case Inr(r)        => Inr(add.extend(r))
       }

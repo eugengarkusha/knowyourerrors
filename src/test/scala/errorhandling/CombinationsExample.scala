@@ -10,8 +10,8 @@ import errorhandling.coproduct.ops._
 import syntax._
 import errorhandling.testApi.Api._
 import errorhandling.testApi.{Api, JavaApi}
-import errors._
 import errorhandling.utils.flattenDedupType
+import errorhandling.syntax.all._
 import org.scalatest.{FunSuite, Matchers}
 import shapeless.syntax.inject._
 import shapeless.{Inl, Inr}
@@ -24,9 +24,10 @@ import scala.util.Try
 class CombinationsExample extends FunSuite with Matchers {
 
 
-  case class UnexcpectedErr(msg: String, cause: Cause) extends GenError
-  case class NoStorage(msg: String, cause: Cause) extends GenError
-  case class WrongInput(msg: String, cause: Cause) extends GenError
+  trait GenError
+  case class UnexcpectedErr(msg: String) extends GenError
+  case class NoStorage(msg: String)extends GenError
+  case class WrongInput(msg: String)extends GenError
 
 
   test("combination of identical error and some non error contexts") {
@@ -56,7 +57,7 @@ class CombinationsExample extends FunSuite with Matchers {
 
   test("partial handling") {
     val partiallyHandled: EitherT[Future, Err2 :+:Err3, String] =
-      EitherT(Api.methodA).partiallyHandle (_._case[Api.Err1](_.toString))
+      EitherT(Api.methodA).partiallyHandle (_.recoverFrom[Api.Err1](_.toString))
 
     Await.result(partiallyHandled.value, 1.second) should be (Left(Inl(404)))
   }
@@ -65,9 +66,9 @@ class CombinationsExample extends FunSuite with Matchers {
 
     val fullyHandled = {
       EitherT(Api.methodA).handle {
-        _._case[Api.Err1](e => s"e1 was: $e, now: OK")
-         ._case[Api.Err2](e => s"e2 was: $e, now: OK")
-         ._case[Api.Err3](e => s"e3 was: $e, now: OK")
+        _.recoverFrom[Api.Err1](e => s"e1 was: $e, now: OK")
+         .recoverFrom[Api.Err2](e => s"e2 was: $e, now: OK")
+         .recoverFrom[Api.Err3](e => s"e3 was: $e, now: OK")
       }
     }
 
@@ -79,11 +80,11 @@ class CombinationsExample extends FunSuite with Matchers {
   test("partial wrapping") {
     //works the same as full wrapping shown in all-in-one case
 
-    type partiallyResolvedErr = GenErr :+: NoStorage
+    type partiallyResolvedErr = Err :+: NoStorage
 
-    def partiallyResolve(g: GenErr): partiallyResolvedErr = {
+    def partiallyResolve(g: Err): partiallyResolvedErr = {
       g.cause match {
-        case  Some(Right(e:FileNotFoundException)) => NoStorage("comment", e).inject[partiallyResolvedErr]
+        case  e: FileNotFoundException => NoStorage("msg").inject[partiallyResolvedErr]
         case _                          => g.inject[partiallyResolvedErr]
       }
     }
@@ -92,7 +93,7 @@ class CombinationsExample extends FunSuite with Matchers {
 
     val partiallyWrapped: EitherT[Future, commonErrType.Out, (String, String)] = {
       for {
-        a <- EitherT(Api.methodWithGenErr).leftMap(_.flatMapI[GenErr](partiallyResolve).embed[commonErrType.Out])
+        a <- EitherT(Api.methodWithGenErr).leftMap(_.flatMapI[Err](partiallyResolve).embed[commonErrType.Out])
         b <- EitherT(Api.methodB).embed[commonErrType.Out]
       } yield a -> b
     }
@@ -105,11 +106,11 @@ class CombinationsExample extends FunSuite with Matchers {
     type genErrResolved = NoStorage +: WrongInput :+: UnexcpectedErr
 
     //Fully resolve the general error with concrete errors(partial wrapping is done the same way)
-    def resolveGenErr(g: GenErr): genErrResolved = {
+    def resolveGenErr(g: Err): genErrResolved = {
       g.cause match{
-        case Some(Right(e:FileNotFoundException))       => NoStorage("comment", e).inject[genErrResolved]
-        case Some(Right(e: IllegalArgumentException))   => WrongInput("comment", e).inject[genErrResolved]
-        case other: Cause => UnexcpectedErr("comment", other).inject[genErrResolved]
+        case e:FileNotFoundException       => NoStorage("msg").inject[genErrResolved]
+        case e: IllegalArgumentException  => WrongInput("msg").inject[genErrResolved]
+        case other => UnexcpectedErr("msg").inject[genErrResolved]
       }
     }
 
@@ -122,9 +123,9 @@ class CombinationsExample extends FunSuite with Matchers {
     val mt = for {
       a     <- EitherT(Api.methodA).embed[commonErr.Out]
       b     <-  EitherT(Api.methodB).embed[commonErr.Out]
-      gen   <-  EitherT(Api.methodWithGenErr).leftMap(_.flatMapI[GenErr](resolveGenErr).embed[commonErr.Out])
+      gen   <-  EitherT(Api.methodWithGenErr).leftMap(_.flatMapI[Err](resolveGenErr).embed[commonErr.Out])
       aa    <-  EitherT.fromEither(Api.syncMethod.embed[commonErr.Out])
-      ext   <-  EitherT.fromEither(Try(JavaApi.excThrowingMethod).toEither.left.map(t => UnexcpectedErr("extApi err", Some(Right(t)))).embed[commonErr.Out])
+      ext   <-  EitherT.fromEither(Try(JavaApi.excThrowingMethod).toEither.left.map(t => UnexcpectedErr(s"extApi err: $t")).embed[commonErr.Out])
       sel   <-  EitherT(Api.methodWithSimpleErrList).embed[commonErr.Out]
       sumEl <-  EitherT(Api.methodWithSumErrList).embed[commonErr.Out]
       se    <-  EitherT(Api.methodWithSimpleError).embed[commonErr.Out]
@@ -152,16 +153,16 @@ class CombinationsExample extends FunSuite with Matchers {
 
         def handleListErr(error: Api.Err2 :+: Api.Err1) = {
           error
-            ._case[Api.Err2](i => s"err at line $i")
-            ._case[Api.Err1](s => s"user said $s")
+            .recoverFrom[Api.Err2](i => s"err at line $i")
+            .recoverFrom[Api.Err1](s => s"user said $s")
         }
 
         errs
-          ._caseAll[GenError](e=> e.msg)
-          ._case[Api.Err1](s => s"error:$s")
-          ._case[Api.Err2](c => s"code $c")
-          ._case[List[Api.Err2 :+: Api.Err1]](_.foldLeft("")((agr, next) => agr + " : " + handleListErr(next)))
-          ._caseAll[Any](a => "other error")
+          .recoverFromAll[GenError](_.toString)
+          .recoverFrom[Api.Err1](s => s"error:$s")
+          .recoverFrom[Api.Err2](c => s"code $c")
+          .recoverFrom[List[Api.Err2 :+: Api.Err1]](_.foldLeft("")((agr, next) => agr + " : " + handleListErr(next)))
+          .recoverFromAll[Any](a => "other error")
       }
     }
 

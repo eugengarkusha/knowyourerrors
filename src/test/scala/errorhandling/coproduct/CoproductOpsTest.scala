@@ -1,13 +1,14 @@
 package errorhandling.coproduct
 
+import java.io
+
 import errorhandling.coproduct.ops.Add
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
 import Coproduct._
-import ops._
-import errorhandling.errors._
 import shapeless.{CNil, Inl, Inr}
 import shapeless.syntax.inject._
+import errorhandling.syntax.all._
 import errorhandling.utils._
 
 
@@ -20,13 +21,8 @@ class CoproductOpsTest extends WordSpec with Matchers {
   case object Y extends SuperXY
 
   "adding a value" in {
-
-    type C = String :+: Boolean
-
-    val i: Int +: String :+: Boolean = Add(1).to[C]
-    val i2: Int +: String :+: Boolean = Add(1).to[Int +: C]
-    i should be(Inl(1))
-    i2 should be(Inl(1))
+    (Add(1).to[ String :+: Boolean] : Int +: String :+: Boolean) should be(Inl(1))
+    (Add(1).to[Int +: String :+: Boolean]: Int +: String :+: Boolean) should be(Inl(1))
   }
 
 
@@ -36,15 +32,13 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
     val intInjected = 1.inject[alltype]
 
-    val all: Either[Int +: CNil, SuperXY] = intInjected.extractAll[SuperXY]
-    all should be(Left(Inl(1)))
+    (intInjected.extractAll[SuperXY]:  Either[Int +: CNil, SuperXY]) should be(Left(Inl(1)))
 
     """intInjected.getAll[Byte]""" shouldNot typeCheck
 
-    val all1: Either[Int +: CNil, SuperXY] = X.inject[alltype].extractAll[SuperXY]
-    all1 should be(Right(X))
+    (X.inject[alltype].extractAll[SuperXY]: Either[Int +: CNil, SuperXY]) should be(Right(X))
 
-    intInjected.extractAll[Any] should be(Right(1))
+    (intInjected.extractAll[Any]: Any) should be(1)
 
   }
 
@@ -57,126 +51,108 @@ class CoproductOpsTest extends WordSpec with Matchers {
 
   "covariant mapping" in {
     val v = X.inject[String +: X.type :+: Y.type]
-    val mapped: String +: Int :+: Int = v.mapC[SuperXY](_ => 1)
-    mapped should be(Inr(Inl(1)))
+    (v.mapC[SuperXY](_ => 1): String +: Int :+: Int) should be(Inr(Inl(1)))
   }
 
   "invariat mapping" in {
     val v: String +: Int +: Short :+: Int = Inr(Inl(1))
-    val mapped: String +: Boolean +: Short :+: Boolean = v.mapI[Int](_ == 1)
-    mapped should be(Inr(Inl(true)))
+    (v.mapI[Int](_ == 1): String +: Boolean +: Short :+: Boolean) should be(Inr(Inl(true)))
   }
 
   "covariant flatMapping" in {
     val v: String +: X.type :+: Y.type = Inr(Inl(X))
-    val flatmapped: String :+: Int  = v.flatMapC[SuperXY](_.toString.inject[String :+: Int]).dedup
-    flatmapped should be(Inl("X"))
+    (v.flatMapC[SuperXY](_.toString.inject[String :+: Int]).dedup : String :+: Int) should be(Inl("X"))
   }
 
   "invariant flatMapping" in {
-    type R = String :+: Byte
-    def i2R(i: Int): R = {
-      if (i > 0) {12.toByte.inject[R] }
-      else {"blah".inject[R] }
+    type CP = String :+: Byte
+    def i2CP(i: Int): CP = {
+      if (i > 0) {12.toByte.inject[CP] }
+      else {"blah".inject[CP] }
     }
 
-    val flatMapped: String +: Byte :+: Short = intVal.flatMapI[Int](i2R).dedup
-    flatMapped should be(Inr(Inl(12)))
+    (intVal.flatMapI[Int](i2CP).dedup :String +: Byte :+: Short)  should be(Inr(Inl(12)))
 
-    val flatMapped1: String +: Byte :+: Short = intVal.mapI[Int](i2R).flatten.dedup
-    flatMapped1 should be(Inr(Inl(12)))
+    (intVal.mapI[Int](i2CP).flatten.dedup: String +: Byte :+: Short) should be(Inr(Inl(12)))
 
-    val flatMapped2: String +: Byte :+: Short = intVal.flatMapI[Int](v => i2R(v - 100)).dedup
-    flatMapped2 should be(Inl("blah"))
+    (intVal.flatMapI[Int](v => i2CP(v - 100)).dedup : String +: Byte :+: Short) should be(Inl("blah"))
 
-    val flatMapped3: String :+: Short = intVal.flatMapI[Int](_.toString.inject[String +: CNil]).dedup
-    flatMapped3 should be(Inl("1"))
+    (intVal.flatMapI[Int](_.toString.inject[String +: CNil]).dedup : String :+: Short) should be(Inl("1"))
   }
 
   "flattening" in {
 
     val nested = Add(1).to[(Byte +: Int :+: Int) +: String +: Int :+: (Short :+: Int)]
 
-    val flattened: Byte +: String +: Short :+: Int = nested.flatten.dedup
-    flattened should be(Inr(Inr(Inr(Inl(1)))))
+    (nested.flatten.dedup: Byte +: String +: Short :+: Int)  should be(Inr(Inr(Inr(Inl(1)))))
 
     val ft = flattenDedupType[(Byte +: Int +:(Int:+:String)) +: String +: Int +: (Short :+: Int) :+: Double]
-    (1.inject[ft.Out]: Byte +: String +: Short +: Int :+: Double) should be(Inr(Inr(Inr(Inl(1)))))
+    implicitly[=:=[ft.Out, Byte +: String +: Short +: Int :+: Double]]
   }
 
 
   "case syntax" in {
 
     trait Err
-
     case object Err1 extends Err
-
     case object Err2 extends Err
-
     case object Err3 extends Err
 
-    val process1: String = {
-      Err1.inject[Err1.type +: Err2.type :+: Err3.type]
-        ._case[Err1.type](_.toString)
-        ._case[Err3.type](_.toString)
-        ._case[Err2.type](_.toString)
-    }
 
-    process1 should be("Err1")
+    (Err1.inject[Err1.type +: Err2.type :+: Err3.type]
+        .recoverFrom[Err1.type](_.toString)
+        .recoverFrom[Err3.type](_.toString)
+        .recoverFrom[Err2.type](_.toString): String) should be("Err1")
 
-    val process2: String = {
-      Err2.inject[Err1.type +: Err2.type :+: Err3.type]
-        ._case[Err1.type](_.toString)
-        ._caseAll[Err](_.toString)
-    }
 
-    process2 should be("Err2")
+    (Err2.inject[Err1.type +: Err2.type :+: Err3.type]
+        .recoverFrom[Err1.type](_.toString)
+        .recoverFromAll[Err](_.toString): String) should be("Err2")
 
-    val wrapExceptionOnly: Err2.type :+: Err3.type = {
-      Err2.inject[Err1.type +: Err2.type :+: Err3.type]
+
+    (Err2.inject[Err1.type +: Err2.type :+: Err3.type]
         //Return type is stated explicitly because of the known inference problem
-        ._case[Err1.type](_ => (throw new RuntimeException("")): Int)
-        .suspend.left.get
-    }
+        .recoverFrom[Err1.type](_ => (throw new RuntimeException("")): Int).left.get : Err2.type :+: Err3.type
+      ) should be(Inl(Err2))
 
-    wrapExceptionOnly should be(Inl(Err2))
 
     """val process3: String = {
       Inject(Err2).into[Err1.type +: Err2.type :+: Err3.type]
-      ._case[Err1.type ](_.toString)
-      ._case[Err2.type](_.toString)
+      .recoverFrom[Err1.type ](_.toString)
+      .recoverFrom[Err2.type](_.toString)
     }""" shouldNot typeCheck
 
   }
 
   "caseAll, caseOthers, suspend" in {
 
-    trait ServiceErr extends NoCauseError
+    trait GenError
+    case class ValidationErr(msg: String) extends GenError
+    trait ServiceErr extends GenError
     case class IOErr(msg: String) extends ServiceErr
     trait TimeOut extends ServiceErr
 
     type commonSuper = ValidationErr +: IOErr :+: TimeOut
 
-    ValidationErr("err", null).inject[commonSuper]
-      ._caseAll[GenError](_.toString) should be("ValidationErr(err,null)")
+    val valErr = ValidationErr("err").inject[commonSuper]
+    val ioErr = IOErr("boom").inject[commonSuper]
 
+   
+    valErr.recoverFromAll[GenError](_.toString) should be("ValidationErr(err)")
 
-    val partiallyHandled: Either[ValidationErr, String] ={
-      ValidationErr("err", null).inject[commonSuper]
-        ._caseAll[ServiceErr](_.toString)
-        .suspend
-    }
-    partiallyHandled should be(Left(ValidationErr("err", null)))
+    (valErr.recoverFromAll[ServiceErr](_.toString).left.map(_.lub) : Either[ValidationErr, String]) should be(
+      Left(ValidationErr("err"))
+    )
 
-    val err: commonSuper = IOErr("boom").inject[commonSuper]
+    (ioErr.recoverFrom[TimeOut](_.toString): Either[ValidationErr :+: IOErr, String]) should be (
+      Left(Inr(Inl(IOErr("boom"))))
+    )
 
-    val r2: String = err._case[IOErr](_.toString)._caseAll[GenError](_.toString)
-    r2 should be ("IOErr(boom)")
+    (ioErr.recoverFrom[IOErr](_.toString).recoverFromAll[GenError](_.toString + "!!!"): String) should be ("IOErr(boom)")
 
-    val r3: Either[ValidationErr :+: IOErr, String] = err._case[TimeOut](_.toString).suspend
-    r3 should be (Left(Inr(Inl(IOErr("boom")))))
+    (ioErr.recoverFrom[IOErr]("Recovered:" + _): Either[ValidationErr :+: TimeOut, String]) should be (
+      Right("Recovered:IOErr(boom)")
+    )
 
-    val r4: Either[ValidationErr :+: TimeOut, String] = err._case[IOErr]("Recovered:" + _).suspend
-    r4 should be (Right("Recovered:IOErr(boom)"))
   }
 }

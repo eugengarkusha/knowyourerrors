@@ -1,8 +1,9 @@
 package errorhandling
 
-import errorhandling.coproduct.ops.{Dedup, FlattenAux, LiftCp}
+import errorhandling.coproduct.ops.{Dedup, LiftCp}
 import shapeless.Coproduct
 import shapeless.ops.coproduct.Prepend
+import errorhandling.syntax.FlattenAux
 
 object utils {
 

@@ -2,23 +2,25 @@ package errorhandling.misc
 
 object boolOps {
 
-  trait IF[Cond, T, F] {
+  trait IF[TCond, FCond, T, F] {
     type Out
-    def apply(l: => T, r: => F): Out
+    def apply(t: TCond => T, f: FCond => F): Out
   }
   trait lo {
-    implicit def _false[C, T, F]: IF.Aux[C, T, F, F] = new IF[C, T, F] {
-      type Out = F
-      def apply(l: => T, r: => F): Out = r
-    }
+    implicit def _false[TCond, FCond, T, F](implicit fc: FCond): IF.Aux[TCond, FCond, T, F, F] =
+      new IF[TCond, FCond, T, F] {
+        type Out = F
+        def apply(t: TCond => T, f: FCond => F): Out = f(fc)
+      }
   }
   object IF extends lo {
-    type Aux[C, T, F, O] = IF[C, T, F] { type Out = O }
+    type Aux[TCond, FCond, T, F, O] = IF[TCond, FCond, T, F] { type Out = O }
 
-    implicit def _true[C, T, F](implicit c: C): IF.Aux[C, T, F, T] = new IF[C, T, F] {
-      type Out = T
-      def apply(l: => T, r: => F): Out = l
-    }
+    implicit def _true[TCond, FCond, T, F](implicit c: TCond): IF.Aux[TCond, FCond, T, F, T] =
+      new IF[TCond, FCond, T, F] {
+        type Out = T
+        def apply(t: TCond => T, f: FCond => F): Out = t(c)
+      }
   }
 
 }
